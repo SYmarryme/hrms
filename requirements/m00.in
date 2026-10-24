@@ -1,0 +1,5 @@
+# Provisional constraints only; NOT a tested lock file.
+# Python >=3.11 is an implementation choice pending CloudStudio validation.
+SQLAlchemy>=2.0,<2.1
+alembic>=1.13,<2
+pytest>=8,<9
