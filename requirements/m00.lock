@@ -2,7 +2,7 @@
 # Exact user-supplied CloudStudio snapshot at commit
 # 954bfb341d638e62bf8243073b03f30850ae2d81; original SQLite PoC: 13 passed.
 # Install requirements/m00-bootstrap.lock FIRST; the union is all 13 packages.
-# Fresh-environment replay of these locks: NOT_RUN, awaiting CloudStudio.
+# Fresh replay accepted by user 2026-10-25 at delivery 8d427017e0f91f7c3aa23dd20fefcd8d4e34284a.
 alembic==1.20.1
 greenlet==3.5.6
 iniconfig==2.3.1

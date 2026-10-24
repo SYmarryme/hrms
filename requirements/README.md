@@ -3,7 +3,9 @@
 Source: user-supplied CloudStudio `pip freeze --all` for commit
 `954bfb341d638e62bf8243073b03f30850ae2d81`, Ubuntu 24.04.3 LTS x86_64,
 Python 3.11.1. The user reported 13/13 SQLite PoC tests passed on that environment.
-Fresh-environment lock replay: **NOT_RUN**. T-002 remains **PARTIAL**, not accepted.
+On 2026-10-25 the user confirmed the fresh-environment replay and all T-001–T-003
+checks passed for delivery `8d427017e0f91f7c3aa23dd20fefcd8d4e34284a`.
+T-002 is **PASS (user acceptance)**; no Windows runtime testing is claimed.
 
 | File | Role |
 |---|---|
@@ -31,5 +33,5 @@ of the replay evidence; the script never installs or changes the Python interpre
 
 This batch declares no frontend dependencies and creates no npm lock file or application.
 All replay results stay in ignored `var/m00/`; return sanitized logs, actual commit,
-`verification.json`, `junit.xml` and both exit-code files for review. Keep T-002 pending
-until the user supplies the real replay evidence and explicitly accepts it.
+`verification.json`, `junit.xml` and both exit-code files for review on future reruns.
+Historical acceptance does not turn a new rerun or T-004 into an automatic pass.

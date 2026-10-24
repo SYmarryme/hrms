@@ -6,7 +6,9 @@ Ubuntu 环境检查和 SQLite/Alembic 独立实验脚本。没有实现员工、
 
 用户已回传原提交 `954bfb341d638e62bf8243073b03f30850ae2d81` 的云端结果：
 T-001 哈希 7/7 MATCH、环境检查退出 0、SQLite PoC 13/13 通过。
-**T-002 全新环境依赖重放仍为 `NOT_RUN`，尚未通过验收。**
+2026-10-25 用户确认全新环境重放及本批检查全部通过，**T-001～T-003 已验收 PASS**。
+验收代码基线：`8d427017e0f91f7c3aa23dd20fefcd8d4e34284a`，证据来源与边界见[验收记录](docs/acceptance.md)。
+T-004 将独立准备并验收，实际运行仍为 `NOT_RUN`；不代表 M00 Gate 或部署完成。
 
 依赖已按该次真实 `pip freeze --all` 固定，未调整已验证版本。
 在 CloudStudio Ubuntu 项目根目录更新后运行：
