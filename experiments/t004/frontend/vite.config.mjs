@@ -7,7 +7,7 @@ if (origin.protocol !== 'https:' || origin.username || origin.password || origin
 }
 const root = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
-  root, envDir: false, publicDir: false,
+  root, envDir: false, envPrefix: [], publicDir: false,
   cacheDir: '.vite-cache',
   server: {
     host: '0.0.0.0', port: 3000, strictPort: true, hmr: false,

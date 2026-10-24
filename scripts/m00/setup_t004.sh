@@ -10,6 +10,7 @@ fi
 mkdir -p var/m00
 env_dir="$(mktemp -d "$ROOT/var/m00/t004-env.XXXXXXXX")"
 exec > >(tee "$env_dir/setup.log") 2>&1
+printf 'T004_ENV_DIR=%s\n' "$env_dir"
 trap 'rc=$?; printf "%s\n" "$rc" > "$env_dir/setup-exit-code.txt"' EXIT
 base_python="${T004_BASE_PYTHON:-$ROOT/.venv/bin/python}"
 "$base_python" -I -c 'import sys; assert sys.version_info >= (3,11), "Python >=3.11 required"'
