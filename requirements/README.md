@@ -31,7 +31,9 @@ The snapshot provided version pins, not wheel hashes, so these are exact-version
 not a claim of artifact hash verification. The interpreter/system version remains part
 of the replay evidence; the script never installs or changes the Python interpreter.
 
-This batch declares no frontend dependencies and creates no npm lock file or application.
+T-001–T-003 declare no frontend dependencies and create no npm lock file or application.
+The separate T-004 fixture and its pending dependency evidence are described in
+[the T-004 guide](../docs/t004-execution.md); do not mix that environment into these locks.
 All replay results stay in ignored `var/m00/`; return sanitized logs, actual commit,
 `verification.json`, `junit.xml` and both exit-code files for review on future reruns.
 Historical acceptance does not turn a new rerun or T-004 into an automatic pass.

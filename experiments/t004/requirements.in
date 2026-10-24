@@ -1,0 +1,4 @@
+# New isolated T-004 fixture dependencies; NOT_RUN, not a verified lock.
+# M00 accepted locks remain unchanged. Capture resolved versions in CloudStudio.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1

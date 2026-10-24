@@ -1,0 +1,10 @@
+{
+  "name": "hrms-t004-health-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite" },
+  "dependencies": { "vue": "^3.5.0" },
+  "devDependencies": { "vite": "^8.0.0" },
+  "engines": { "node": "^20.19.0 || >=22.12.0" }
+}
