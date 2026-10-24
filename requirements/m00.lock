@@ -1,0 +1,16 @@
+# Project/test dependencies, including the complete transitive closure.
+# Exact user-supplied CloudStudio snapshot at commit
+# 954bfb341d638e62bf8243073b03f30850ae2d81; original SQLite PoC: 13 passed.
+# Install requirements/m00-bootstrap.lock FIRST; the union is all 13 packages.
+# Fresh-environment replay of these locks: NOT_RUN, awaiting CloudStudio.
+alembic==1.20.1
+greenlet==3.5.6
+iniconfig==2.3.1
+Mako==1.4.3
+MarkupSafe==3.0.4
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0
+pytest==8.4.2
+SQLAlchemy==2.0.55
+typing_extensions==4.16.0
