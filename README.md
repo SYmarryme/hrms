@@ -13,8 +13,9 @@ T-004 独立验收，旧版浏览器 Cookie 路径检查 `FAIL`；新修复重�
 **下一步：[T-004 CloudStudio 执行指令](docs/t004-execution.md)**。
 包含独立环境安装、前端 3000 同源代理到 loopback 8000、HTTPS/转发头/Cookie 检查、
 浏览器与平台端口证据，以及 SQLite 跨工作空间暂停/重启持久化。
-当前先按[Cookie 路径排查与重测说明](docs/t004-cookie-path-investigation.md)更新并运行 7 项回归。
-新修复的云端回归/HTTPS/浏览器测试均 `NOT_RUN`，见[独立验收表](docs/t004-acceptance.md)。
+`10c34dd` 的原 7 项回归已获用户回传通过，但真实浏览器仍 outside=1，因此 T-004 未通过。
+当前按[真实浏览器与代理分层诊断](docs/t004-cookie-wire-diagnostics.md)更新，保留原 7 项回归，
+新增 Chromium 实际请求/响应及 Cookie 存储属性检查。所有新代码云端重测 `NOT_RUN`，见[独立验收表](docs/t004-acceptance.md)。
 新依赖仅装入 `var/m00/t004-env.<随机后缀>`，不改变已通过的 M00 环境或锁文件。
 
 依赖已按该次真实 `pip freeze --all` 固定，未调整已验证版本。

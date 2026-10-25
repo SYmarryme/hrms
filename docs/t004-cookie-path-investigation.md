@@ -1,5 +1,9 @@
 # T-004 Cookie 路径检查排查与重测
 
+最新结果：用户回传 `10c34dd` 的 7 项回归通过，但独立本次名称仍 outside=1、legacy=false，
+故不能再归因于旧固定 Cookie。请优先执行[真实浏览器分层诊断](t004-cookie-wire-diagnostics.md)。
+下文保留上一轮检测修复的历史原因；新增诊断按本次授权仅报告测试 Cookie 名称/次数/属性，绝不报告值。
+
 状态：**未通过；修复与新增回归测试待 CloudStudio 执行**。
 用户回传基线为 `b7237e7b10bc0385228113fe282039c9e92d3476`：HTTPS/同源/范围内接收/
 范围内 JS 不可读均 true，但范围外接收也为 true，因此 browser_result=FAIL。
@@ -65,7 +69,7 @@ bash scripts/m00/start_t004.sh "$T004_ENV_DIR" "$T004_ORIGIN"
 回归测试使用已声明的 FastAPI/Starlette 加标准库 unittest，无新依赖，无网络请求/真实 Cookie/数据库。
 预期 **7 tests / OK / T004_COOKIE_TEST_EXIT_CODE=0**。覆盖：安全属性、干净客户端路径隔离、
 旧宽 Path Cookie 重现旧误判、不同运行互不混淆、同名重复、错误值仍判存在、iframe 绑定本次标记。
-当前这些测试未在 Windows 或 CloudStudio 执行，不能把补充测试文件当作已通过。
+这 7 项已由用户在 10c34dd 的 CloudStudio 中执行通过；新诊断版本仍须复跑，Windows 不运行项目测试。
 
 4. 另开终端，设置相同两个变量，执行：
 

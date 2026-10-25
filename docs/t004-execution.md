@@ -1,6 +1,7 @@
 # T-004 CloudStudio 执行指令
 
 本页为 CloudStudio 操作说明；Windows 不安装或运行项目。
+最新 `10c34dd` 的原 7 项回归通过但真实浏览器仍 FAIL：先执行[分层代理/Chromium 诊断](t004-cookie-wire-diagnostics.md)。
 更新：用户已回传 `b7237e7` 浏览器路径隔离 FAIL，本轮修复与重测仍 NOT_RUN；
 先按[Cookie 路径排查与重测说明](t004-cookie-path-investigation.md)重新安装、运行 7 项回归并重测。
 下述内容保留其他 T-004 操作步骤；未收到逐项证据的项目仍待验证，T-004 未通过。

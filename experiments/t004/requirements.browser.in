@@ -1,0 +1,2 @@
+# Isolated Chromium diagnostic harness only; NOT_RUN, pending CloudStudio lock.
+playwright>=1.50,<2

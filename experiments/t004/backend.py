@@ -1,6 +1,7 @@
 """Synthetic GET-only deployment probe. No HRMS users, sessions or business DB."""
 import os
 import re
+from http.cookies import SimpleCookie
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Query, Request, Response
@@ -20,6 +21,34 @@ COOKIE_VALUE = 'poc-not-a-session'
 COOKIE_PATH = '/api/v1/poc/'
 
 
+def issued_cookie_attributes(response: Response, name: str):
+    cookies = SimpleCookie()
+    for header in response.headers.getlist('set-cookie'):
+        cookies.load(header)
+    marker = cookies[name]
+    return {'name': marker.key, 'path': marker['path'], 'secure': bool(marker['secure']),
+            'httpOnly': bool(marker['httponly']), 'sameSite': marker['samesite'].lower(),
+            'domain_present': bool(marker['domain'])}
+
+
+def proxy_observation(request: Request):
+    def integer(header):
+        value = request.headers.get(header, '')
+        return int(value) if value.isdigit() and len(value) < 5 else None
+
+    def path(header):
+        value = request.headers.get(header, '')
+        return value if value.startswith('/') and len(value) <= 512 and not any(
+            char in value for char in ('?', '#', '\r', '\n', '\x00')) else None
+
+    return {
+        'ingress_path': path('x-t004-vite-in-path'),
+        'outgoing_path': path('x-t004-vite-out-path'),
+        'ingress_count': integer('x-t004-vite-in-count'),
+        'outgoing_count': integer('x-t004-vite-out-count'),
+    }
+
+
 def cookie_observation(request: Request, probe_id: str):
     name = COOKIE_PREFIX + probe_id
 
@@ -30,6 +59,7 @@ def cookie_observation(request: Request, probe_id: str):
     occurrences = count(name)
     return {
         'fixture': 'hrms-t004', 'observed_path': request.url.path,
+        'cookie_name': name, 'proxy': proxy_observation(request),
         'received': occurrences == 1 and request.cookies.get(name) == COOKIE_VALUE,
         'cookie_name_present': occurrences > 0, 'cookie_name_count': occurrences,
         # Observation only; old cookies are never treated as the current probe.
@@ -63,7 +93,8 @@ def cookie(response: Response, probe_id: str = Query(..., pattern=r'^[0-9a-f]{32
     # Public constant diagnostic marker. It cannot authenticate anyone.
     response.set_cookie(COOKIE_PREFIX + probe_id, COOKIE_VALUE, secure=True, httponly=True,
                         samesite='lax', path=COOKIE_PATH, max_age=600)
-    return {'fixture': 'hrms-t004', 'cookie_set': True, 'declared_path': COOKIE_PATH, 'run_scoped': True}
+    return {'fixture': 'hrms-t004', 'cookie_set': True, 'declared_path': COOKIE_PATH,
+            'run_scoped': True, 'backend_set_cookie': issued_cookie_attributes(response, COOKIE_PREFIX + probe_id)}
 
 
 @app.get('/api/v1/poc/cookie-check')

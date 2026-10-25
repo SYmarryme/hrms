@@ -4,21 +4,44 @@ createApp({
   setup() {
     const result = ref('NOT_RUN');
     async function check() {
+      const diagnostics: Record<string, unknown> = {};
+      result.value = 'RUNNING';
       try {
         if (location.protocol !== 'https:') throw new Error('必须从 CloudStudio HTTPS 公网入口打开');
         const probeId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
         const cookieName = 'hrms_t004_probe_' + probeId;
         const scoped = (path: string) => path + '?probe_id=' + probeId;
+        const safeAttrs = (attrs: any) => attrs ? ({ name: attrs.name, path: attrs.path,
+          secure: attrs.secure, httpOnly: attrs.httpOnly, sameSite: attrs.sameSite,
+          domain_present: attrs.domain_present }) : null;
+        const strictAttrs = (attrs: any) => attrs?.name === cookieName && attrs.path === '/api/v1/poc/'
+          && attrs.secure === true && attrs.httpOnly === true && attrs.sameSite === 'lax' && attrs.domain_present === false;
         const get = async (path: string) => {
+          diagnostics.last_request_path = new URL(path, location.origin).pathname;
           const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
           if (!response.ok || response.redirected || response.url !== new URL(path, location.origin).href) throw new Error('同源 API 或最终请求路径不符，禁止重定向');
-          return response.json();
+          const data = await response.json();
+          data.client_boundary = { request_path: new URL(path, location.origin).pathname, response_path: new URL(response.url).pathname };
+          data.vite_set_cookie = safeAttrs(JSON.parse(response.headers.get('x-t004-vite-set-cookie') || 'null'));
+          return data;
         };
         const health = await get('/api/v1/poc/health');
-        await get(scoped('/api/v1/poc/cookie'));
+        const issued = await get(scoped('/api/v1/poc/cookie'));
+        diagnostics.issued = { ...issued.client_boundary, backend_set_cookie: safeAttrs(issued.backend_set_cookie), vite_set_cookie: issued.vite_set_cookie };
         const inside = await get(scoped('/api/v1/poc/cookie-check'));
         const outside = await get(scoped('/api/v1/poc-outside/cookie-check'));
+        const boundary = (data: any) => ({ ...data.client_boundary, backend_path: data.observed_path,
+          cookie_name: data.cookie_name, backend_count: data.cookie_name_count,
+          proxy: data.proxy ? { ingress_path: data.proxy.ingress_path, outgoing_path: data.proxy.outgoing_path,
+            ingress_count: data.proxy.ingress_count, outgoing_count: data.proxy.outgoing_count } : null });
+        diagnostics.inside = boundary(inside);
+        diagnostics.outside = boundary(outside);
         const pathsVerified = inside.observed_path === '/api/v1/poc/cookie-check' && outside.observed_path === '/api/v1/poc-outside/cookie-check';
+        const proxyMatches = (data: any, path: string) => data.proxy?.ingress_path === path
+          && data.proxy.outgoing_path === path && data.proxy.ingress_count === data.cookie_name_count
+          && data.proxy.outgoing_count === data.cookie_name_count;
+        const boundariesVerified = strictAttrs(issued.backend_set_cookie) && strictAttrs(issued.vite_set_cookie)
+          && proxyMatches(inside, '/api/v1/poc/cookie-check') && proxyMatches(outside, '/api/v1/poc-outside/cookie-check');
         const frame = document.createElement('iframe');
         frame.hidden = true;
         frame.src = scoped('/api/v1/poc/browser-cookie');
@@ -38,16 +61,17 @@ createApp({
         } finally {
           frame.remove();
         }
-        const passed = health.fixture === 'hrms-t004' && health.status === 'ok' && pathsVerified && inside.received === true
+        const passed = health.fixture === 'hrms-t004' && health.status === 'ok' && pathsVerified && boundariesVerified && inside.received === true
           && inside.cookie_name_count === 1 && outside.received === false && outside.cookie_name_present === false && outside.cookie_name_count === 0 && hidden;
         result.value = JSON.stringify({ browser_result: passed ? 'PASS' : 'FAIL', commit: health.commit,
           https: true, same_origin: true, cookie_received: inside.received,
           cookie_outside_path: outside.cookie_name_present, cookie_hidden_from_js_inside_path: hidden,
           request_paths_verified: pathsVerified, cookie_scope: 'unique-per-run',
           cookie_inside_name_count: inside.cookie_name_count, cookie_outside_name_count: outside.cookie_name_count,
-          legacy_cookie_outside_path: outside.legacy_cookie_present }, null, 2);
+          legacy_cookie_outside_path: outside.legacy_cookie_present,
+          cookie_boundaries_verified: boundariesVerified, cookie_path_diagnostics: diagnostics }, null, 2);
       } catch (error) {
-        result.value = 'FAIL: ' + (error instanceof Error ? error.message : 'request failed');
+        result.value = JSON.stringify({ browser_result: 'FAIL', failure: 'request_or_cookie_context_failed', cookie_path_diagnostics: diagnostics }, null, 2);
       }
     }
     return () => h('main', { style: 'font:16px system-ui;max-width:760px;margin:48px auto;padding:20px' }, [

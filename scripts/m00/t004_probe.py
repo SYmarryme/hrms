@@ -14,6 +14,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import HTTPCookieProcessor, HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+from t004_browser import attributes, safe_boundary
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -61,11 +63,19 @@ def probe(origin, expected_commit, local, outside_canary=None, diagnostics=None)
     else:
         check('proxy_replaces_untrusted_forwarding', health.get('forwarded_proto_https') is True and health.get('forwarded_host_matches') is True
               and health.get('forwarded_present') is False and health.get('forwarded_for_present') is False)
-        _, headers = get(scoped('/api/v1/poc/cookie'))
+        issued, headers = get(scoped('/api/v1/poc/cookie'))
         cookie = SimpleCookie()
         for value in headers.get_all('Set-Cookie', []):
             cookie.load(value)
         marker = cookie.get(cookie_name)
+        if diagnostics is not None:
+            diagnostics['set_cookie'] = {
+                'backend': attributes(issued.get('backend_set_cookie')),
+                'vite': attributes(json.loads(headers.get('x-t004-vite-set-cookie') or 'null')),
+                'https_received': attributes({'name': cookie_name, 'path': marker['path'],
+                    'secure': bool(marker['secure']), 'httpOnly': bool(marker['httponly']),
+                    'sameSite': marker['samesite'], 'domain_present': bool(marker['domain'])}) if marker else None,
+            }
         check('cookie_attributes', marker is not None and bool(marker['secure']) and bool(marker['httponly'])
               and marker['path'] == '/api/v1/poc/' and marker['samesite'].lower() == 'lax' and not marker['domain'])
         inside, _ = get(scoped('/api/v1/poc/cookie-check'))
@@ -80,6 +90,12 @@ def probe(origin, expected_commit, local, outside_canary=None, diagnostics=None)
                 'outside_legacy_name_present': outside.get('legacy_cookie_present'),
                 'inside_path_matches': inside.get('observed_path') == '/api/v1/poc/cookie-check',
                 'outside_path_matches': outside.get('observed_path') == '/api/v1/poc-outside/cookie-check',
+                'inside_boundary': safe_boundary({'request_path': '/api/v1/poc/cookie-check',
+                    'response_path': '/api/v1/poc/cookie-check', 'backend_path': inside.get('observed_path'),
+                    'cookie_name': inside.get('cookie_name'), 'backend_count': inside.get('cookie_name_count'), 'proxy': inside.get('proxy')}),
+                'outside_boundary': safe_boundary({'request_path': '/api/v1/poc-outside/cookie-check',
+                    'response_path': '/api/v1/poc-outside/cookie-check', 'backend_path': outside.get('observed_path'),
+                    'cookie_name': outside.get('cookie_name'), 'backend_count': outside.get('cookie_name_count'), 'proxy': outside.get('proxy')}),
             })
         check('cookie_request_paths', inside.get('observed_path') == '/api/v1/poc/cookie-check'
               and outside.get('observed_path') == '/api/v1/poc-outside/cookie-check')
