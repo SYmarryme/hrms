@@ -23,8 +23,11 @@ SQLite 基线退出 0，原回执/哈希已独立保存，用户确认实际停�
 使用原回执及原哈希运行 after，T004_RESTART_EXIT_CODE=0、AFTER_RESTART_EXIT_CODE=0。
 按原 after 分支语义登记数据库部分 **USER_REPORTED_PASS**，完整 CONTENT_MATCH 日志仍 **PENDING_REVIEW**。
 这不是 Codex 已读取原始日志或独立重跑的结论。实际运行提交、时间未提供，不用交付提交冒充。
-8000 本机隔离 USER_REPORTED_PASS；Edge 无痕受限端口跳转 CloudStudio 登录页仅作观测，
-外部隔离 INCOMPLETE，不能据此判定后端无独立路由。
+8000 最新用户实测：前端 0.0.0.0:3000 / 平台公开；后端 127.0.0.1:8000 / 平台仅自己可见，
+本地测试退出 0；Edge 无痕访问 8000 外部链接跳转登录页；已登录所有者在 IDE 点击 8000“查看预览”，
+可到达 FastAPI 根路径并收到正常 HTTP 404（根路由未定义）。
+分项登记见下表。整体外部隔离仍 INCOMPLETE/BLOCKED；受认证预览存在不等于匿名公开漏洞。
+本轮未修改 SQLite 既有结果、测试代码或批准架构。
 前置 T-001～T-003 已于 2026-10-25 获用户确认通过。
 验收不得只依据脚本退出 0；每项须记录真实脚本提交及实际服务提交，不能把新 HEAD 冒充仍运行的旧服务。
 SQLite 重启前后项目 HEAD 必须一致；未重启服务时可独立使用新端口脚本收集原服务的证据。
@@ -36,12 +39,27 @@ SQLite 重启前后项目 HEAD 必须一致；未重启服务时可独立使用�
 | T004-03 | 证书验证开启的 HTTPS 脚本通过，健康响应 commit 与实际服务一致 | PENDING_EVIDENCE |
 | T004-04 | 伪造 Forwarded/X-Forwarded-* 经代理被清除/替换；直连 Uvicorn 不据伪造头更改 scheme | PENDING_EVIDENCE |
 | T004-05 | Chromium EDGE_SET_COOKIE_TRANSFORM + 用户 A/B 确认 AFTER_LOOPBACK_VITE | BLOCKED_CURRENT_PUBLIC_ENTRY（当前入口；其他入口未证实） |
-| T004-06 | 仅 3000 平台公网映射；8000 loopback；外部无独立 API 入口 | PARTIAL：本机 USER_REPORTED_PASS；外部 INCOMPLETE（无痕登录跳转不足以通过） |
+| T004-06 | 仅 3000 公开；8000 loopback；8000 无独立预览入口 | INCOMPLETE/BLOCKED：本机与非公开配置通过；所有者受认证预览存在，无独立入口断言不满足 |
 | T004-07 | Vite 只服务隔离前端，外部对已存在的无敏感 canary 的 /@fs 请求被拒绝 | PENDING_EVIDENCE |
 | T004-08 | SQLite prepare、重启前 verify；原回执/哈希独立保存 | USER_REPORTED_PASS；基线完整输出待核对 |
 | T004-09 | 实际停止并重启 CloudStudio 工作空间 | USER_REPORTED_PASS（用户明确确认；具体时间/操作记录未附） |
 | T004-10 | 原库标记/摘要、WAL、FK/integrity；恢复后同源/浏览器 | PARTIAL：数据库 USER_REPORTED_PASS / CONTENT_MATCH 日志待核对；恢复后浏览器未验收且 Cookie BLOCKED |
 | T004-11 | 脱敏退出码/证据、安装锁、平台限制与失败项回传 | PARTIAL：已收到本次摘要，完整脱敏核对/剩余项证据未齐 |
+
+T004-06 分项（均来源于用户实测回传，不冒充 Codex 远程复核）：
+
+| 分项 | 证据与结论 |
+|---|---|
+| 后端本地监听限制 | PASS（USER_REPORTED）：127.0.0.1:8000，本地测试退出 0 |
+| 8000 非公开配置 | PASS（USER_REPORTED）：端口管理为“仅自己可见”；3000 为“公开” |
+| 未登录访问需要认证 | 已获得该次实测证据：Edge 无痕访问被重定向至登录页；不扩展为全部访问方式的认证审计 |
+| 完全不存在独立预览入口 | 不满足：已登录所有者可通过 IDE 预览直达后端；应用 HTTP 404 不是网关隔离拒绝 |
+| 整体外部隔离 | INCOMPLETE/BLOCKED（当前入口；彻底禁用该预览的官方配置未确认） |
+
+仅自己可见是访问控制，不能替代无路由要求；当前所有者预览是受认证能力，不认定为匿名公开漏洞。
+IDE 内预览与独立外部已登录浏览器仍分别记录，不能把一种测试冒充另一种。
+不再仅以补一张所有者截图为目标循环测试；优先请官方确认能否独立撤销 8000 预览路由并保留内部代理。
+官方核查与后续验证方案见[8000 平台能力边界](t004-platform-compatibility.md#8000-独立预览入口的能力边界)。
 
 `USER_REPORTED_PASS` 表示按用户明确回传及原脚本语义登记通过，不能写成已独立审核全部产物。
 `PENDING_EVIDENCE` 不断言用户从未执行，只表示本记录没有足够逐项证据。

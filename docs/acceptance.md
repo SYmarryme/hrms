@@ -29,7 +29,9 @@ T-004：当前公网入口 **BLOCKED**。用户回传 FastAPI/Vite 严格的 Pat
 最新用户确认：SQLite 基线退出 0、原回执/哈希独立保存、实际停止并重启工作空间，
 原回执 after 验证 T004_RESTART_EXIT_CODE=0、AFTER_RESTART_EXIT_CODE=0。
 数据库持久化登记 USER_REPORTED_PASS，完整 CONTENT_MATCH 日志仍待核对；不代表恢复后浏览器验收通过。
-8000 本机隔离 USER_REPORTED_PASS，无痕跳转登录页仅是受限访问观测，外部隔离 INCOMPLETE。
+8000 本机监听限制和非公开配置 PASS（用户回传），无痕访问登录拦截已有实测证据。
+已登录所有者可在 IDE 的 8000 预览直达 FastAPI（根路径正常 HTTP 404），故无独立预览入口断言不满足；
+整体外部隔离 INCOMPLETE/BLOCKED。该受认证预览不直接认定为匿名公开漏洞。
 详见 [最新验收表](t004-acceptance.md)及[安全日志核对/剩余步骤](t004-remaining-acceptance.md)。
 官方支持说明仅准备未代发，正式部署架构未更换；T-004 仍未通过。
 T-001～T-003 通过不等于整个 M00 Gate 通过。生产信任与部署：未配置、未验证。
