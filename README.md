@@ -10,7 +10,13 @@ T-001 哈希 7/7 MATCH、环境检查退出 0、SQLite PoC 13/13 通过。
 验收代码基线：`8d427017e0f91f7c3aa23dd20fefcd8d4e34284a`，证据来源与边界见[验收记录](docs/acceptance.md)。
 T-004 独立验收，当前入口 Cookie 兼容性 BLOCKED，M00 Gate 未通过。
 
-**优先：[平台兼容性结论与直连 Vite/公网对比](docs/t004-platform-compatibility.md)**。
+**当前执行：[独立 Bearer Token 三项兼容性验证](docs/t004-bearer.md)**。
+Edge 在 3000 公网 HTTPS 页面验证正确/缺失/错误合成 Token 分别为 200/401/401；
+代码已准备，CloudStudio 回归与真实 Edge 均 NOT_RUN。Token 只临时在内存使用、不输出原文，
+不追踪 Authorization 中间处理，不改变 Cookie/正式认证方案；T-004 继续 BLOCKED。
+用户已指示暂不继续研究关闭 8000 所有者预览入口。本轮不新增 start.sh，继续用既有 setup/start。
+
+**既有阻断：[平台兼容性结论与直连 Vite/公网对比](docs/t004-platform-compatibility.md)**。
 用户证据已表明 Path=/api/v1/poc/、SameSite=Lax 在 Vite 之后变为 /、None；
 不再重写前端检测或放宽属性。官方公开文档未找到透传控制项，平台全局能力尚待官方确认。
 用户已确认本机/公网 A/B 为 BLOCKED_CURRENT_PUBLIC_ENTRY，异常边界 AFTER_LOOPBACK_VITE；
@@ -18,7 +24,7 @@ T-004 独立验收，当前入口 Cookie 兼容性 BLOCKED，M00 Gate 未通过�
 已准备[官方支持技术问题说明](docs/cloudstudio-support-issue.md)，尚未代发。
 部署入口调整仅是[未批准 CR 草案](docs/cr-deploy-cookie-001.md)，不修改批准设计或自动迁移。
 
-**下一步：[8000 外部隔离与 SQLite 工作空间重启验收](docs/t004-remaining-acceptance.md)**。
+**既有记录：[8000 外部隔离与 SQLite 工作空间重启验收](docs/t004-remaining-acceptance.md)**。
 SQLite 实际工作空间重启与原回执 after 已获用户回传退出 0，数据库部分 USER_REPORTED_PASS，
 完整 CONTENT_MATCH 日志仍待核对。8000 本机监听限制与非公开配置用户回传通过，未登录访问被要求认证；
 已登录所有者仍能通过 IDE 预览直达后端，故“无独立入口”不满足，整体外部隔离 INCOMPLETE/BLOCKED。

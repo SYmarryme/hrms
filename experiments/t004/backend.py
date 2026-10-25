@@ -1,11 +1,17 @@
-"""Synthetic GET-only deployment probe. No HRMS users, sessions or business DB."""
+"""Synthetic deployment probes. No HRMS users, sessions or business DB."""
+import hashlib
+import hmac
+import json
 import os
 import re
+import secrets
 from http.cookies import SimpleCookie
+from threading import Lock
+from time import monotonic
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Query, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 origin = urlsplit(os.environ['T004_PUBLIC_ORIGIN'])
 if origin.scheme != 'https' or not origin.hostname or origin.username or origin.password or origin.query or origin.fragment or origin.path not in ('', '/'):
@@ -19,6 +25,61 @@ LEGACY_COOKIE = 'hrms_t004_probe'
 COOKIE_PREFIX = LEGACY_COOKIE + '_'
 COOKIE_VALUE = 'poc-not-a-session'
 COOKIE_PATH = '/api/v1/poc/'
+BEARER_TTL = 120
+BEARER_LIMIT = 64
+bearer_contexts = {}
+bearer_lock = Lock()
+
+
+def expire_bearer_contexts(now):
+    # Called under bearer_lock; only a digest and expiry are ever retained.
+    for identifier, (_, expiry) in list(bearer_contexts.items()):
+        if expiry <= now:
+            del bearer_contexts[identifier]
+
+
+@app.post('/api/v1/poc/bearer-probes')
+async def prepare_bearer_probe(request: Request):
+    # Public synthetic test setup, NOT a credential issuer or HRMS login route.
+    # Parse locally so validation failures cannot reflect arbitrary input text.
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 256:
+            return JSONResponse({'fixture': 'hrms-t004-bearer', 'ready': False}, status_code=413)
+        raw.extend(chunk)
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict) or set(payload) != {'token_sha256'}:
+            raise ValueError('Invalid digest payload')
+        digest = payload['token_sha256']
+        if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+            raise ValueError('Invalid digest payload')
+    except (ValueError, UnicodeError):
+        return JSONResponse({'fixture': 'hrms-t004-bearer', 'ready': False}, status_code=400)
+    with bearer_lock:
+        now = monotonic()
+        expire_bearer_contexts(now)
+        if len(bearer_contexts) >= BEARER_LIMIT:
+            return JSONResponse({'fixture': 'hrms-t004-bearer', 'ready': False}, status_code=503)
+        identifier = secrets.token_hex(16)
+        bearer_contexts[identifier] = (digest, now + BEARER_TTL)
+    return JSONResponse({'fixture': 'hrms-t004-bearer', 'probe_id': identifier, 'commit': commit}, status_code=201)
+
+
+@app.get('/api/v1/poc/bearer-probes/{identifier}')
+def check_bearer_probe(identifier: str, request: Request):
+    with bearer_lock:
+        expire_bearer_contexts(monotonic())
+        context = bearer_contexts.get(identifier)
+    values = request.headers.getlist('authorization')
+    scheme, separator, candidate = values[0].partition(' ') if len(values) == 1 else ('', '', '')
+    authenticated = bool(context and separator and scheme.lower() == 'bearer' and candidate
+                         and hmac.compare_digest(hashlib.sha256(candidate.encode()).hexdigest(), context[0]))
+    # No header diagnostics, token reflection, cookies or business authorization.
+    return JSONResponse({'fixture': 'hrms-t004-bearer', 'authenticated': authenticated,
+                         'context_active': context is not None, 'commit': commit},
+                        status_code=200 if authenticated else 401,
+                        headers={} if authenticated else {'WWW-Authenticate': 'Bearer'})
 
 
 def issued_cookie_attributes(response: Response, name: str):

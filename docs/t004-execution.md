@@ -1,16 +1,19 @@
 # T-004 CloudStudio 执行指令
 
 本页为 CloudStudio 操作说明；Windows 不安装或运行项目。
+当前新增任务优先按[独立 Bearer Token 执行与 Edge 验收](t004-bearer.md)操作。
+本次应用源已变化，需本提交新 setup/服务；不使用旧环境冒充。8000 所有者预览关闭研究暂缓，旧结论保留。
 最新结论：当前公网入口 Cookie 属性改写，T004-05/完整浏览器验收 BLOCKED。
 先阅读[平台兼容性与直连 A/B 对比](t004-platform-compatibility.md)，不要循环重写应用 Cookie 代码。
 以下安装/启动/全流程保留作历史步骤及今后平台入口正式变更后的复测说明。
 用户已确认既有服务 A/B 为 BLOCKED_CURRENT_PUBLIC_ENTRY / AFTER_LOOPBACK_VITE。
-当前改按[8000 外部隔离与 SQLite 工作空间重启](t004-remaining-acceptance.md)继续独立验收，
+既有[8000 外部隔离与 SQLite 工作空间重启](t004-remaining-acceptance.md)说明保留供查阅，当前按上方 Bearer 指令操作，
 不再重写 Cookie 检测或反复重装应用/浏览器；[官方支持说明](cloudstudio-support-issue.md)仅准备未发送。
 未收到逐项证据的其他项目仍待验证，T-004 未通过。
 T-001～T-003 已获用户验收，代码基线见 `docs/acceptance.md`。
-本任务按正式 T-004 准备临时 Vue/TypeScript/Vite + FastAPI GET-only 健康夹具，
+本任务按正式 T-004 准备临时 Vue/TypeScript/Vite + FastAPI 健康夹具，
 不是 HRMS 应用骨架，不接入员工、工资、正式认证或生产数据库。
+原健康/Cookie 仍为 GET；补充 Bearer 实验仅新增 POST 摘要上下文及独立 GET 检查，不授予业务权限。
 
 操作前：项目根目录 `git pull --ff-only origin main`，再执行 `git rev-parse HEAD`，
 核对本轮交付报告提交号。更新失败或提交不符先停止修正。

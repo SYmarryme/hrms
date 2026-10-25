@@ -3,6 +3,67 @@ import { createApp, h, ref } from 'vue';
 createApp({
   setup() {
     const result = ref('NOT_RUN');
+    const bearerResult = ref('NOT_RUN');
+    const bearerRunning = ref(false);
+    async function checkBearer() {
+      if (bearerRunning.value) return;
+      bearerRunning.value = true;
+      bearerResult.value = 'RUNNING';
+      let token = '';
+      const observations: Record<string, number | null> = { correct: null, missing: null, wrong: null };
+      const https = location.protocol === 'https:';
+      const edge = /\bEdg\//.test(navigator.userAgent);
+      try {
+        if (!https || !edge || !window.isSecureContext) throw new Error('Edge HTTPS required');
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        token = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+        bytes.fill(0);
+        const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
+          byte => byte.toString(16).padStart(2, '0')).join('');
+        const base = '/api/v1/poc/bearer-probes';
+        const send = async (path: string, init: RequestInit) => {
+          const response = await fetch(path, { ...init, credentials: 'omit', cache: 'no-store',
+            redirect: 'error', signal: AbortSignal.timeout(15000) });
+          if (response.redirected || response.url !== new URL(path, location.origin).href) throw new Error('Unexpected response');
+          return response;
+        };
+        const prepared = await send(base, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token_sha256: digest }) });
+        if (prepared.status !== 201) throw new Error('Test setup failed');
+        const context = await prepared.json();
+        if (context.fixture !== 'hrms-t004-bearer' || !/^[0-9a-f]{32}$/.test(context.probe_id)
+            || !/^[0-9a-f]{40}$/.test(context.commit)) throw new Error('Invalid test context');
+        // A context ID is not a credential: missing/wrong Bearer must still be 401.
+        const path = base + '/' + context.probe_id;
+        const cases = [
+          { name: 'correct', expected: 200, value: token },
+          { name: 'missing', expected: 401, value: '' },
+          { name: 'wrong', expected: 401, value: (token[0] === '0' ? '1' : '0') + token.slice(1) },
+        ];
+        let passed = true;
+        for (const item of cases) {
+          try {
+            const headers: Record<string, string> = item.value ? { Authorization: 'Bearer ' + item.value } : {};
+            const response = await send(path, { headers });
+            observations[item.name] = response.status;
+            const data = await response.json();
+            if (response.status !== item.expected || data.fixture !== 'hrms-t004-bearer'
+                || data.commit !== context.commit || data.context_active !== true
+                || data.authenticated !== (item.expected === 200)) passed = false;
+          } catch {
+            passed = false;
+          }
+        }
+        bearerResult.value = JSON.stringify({ bearer_result: passed ? 'PASS' : 'FAIL', https, edge,
+          same_origin: true, statuses: observations, commit: context.commit }, null, 2);
+      } catch {
+        bearerResult.value = JSON.stringify({ bearer_result: 'FAIL', https, edge, statuses: observations,
+          failure: 'test_setup_or_request_failed' }, null, 2);
+      } finally {
+        token = ''; // Release local references; no browser storage, console or token output.
+        bearerRunning.value = false;
+      }
+    }
     async function check() {
       const diagnostics: Record<string, unknown> = {};
       result.value = 'RUNNING';
@@ -79,6 +140,10 @@ createApp({
       h('p', '临时技术验证夹具，无员工数据、登录或业务功能。'),
       h('button', { onClick: check, type: 'button' }, '运行浏览器同源与 Cookie 检查'),
       h('pre', { 'aria-live': 'polite', style: 'white-space:pre-wrap' }, result.value),
+      h('h2', '独立 Bearer Token 兼容性测试'),
+      h('p', '仅检查正确、缺失、错误三种请求的状态码，不代表正式认证或 T-004 整体验收。'),
+      h('button', { onClick: checkBearer, type: 'button', disabled: bearerRunning.value }, '运行 Bearer 三项检查'),
+      h('output', { id: 'bearer-result', 'aria-live': 'polite', style: 'display:block;white-space:pre-wrap;font-family:monospace' }, bearerResult.value),
       h('p', '本页不能证明 8000 端口未曝光或工作空间重启后数据仍在，这两项需独立留证。'),
     ]);
   },
