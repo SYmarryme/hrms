@@ -37,4 +37,26 @@ describe('department shared Bearer requests', () => {
       await expect(api.createDepartment({ code: 'D01', name: 'Name', parent_id: null, status: 'ACTIVE' })).rejects.toMatchObject({ status });
     }
   });
+  it.each([
+    ['https://untrusted.invalid/a?b=c#d', 'https%3A%2F%2Funtrusted.invalid%2Fa%3Fb%3Dc%23d'],
+    ['//untrusted.invalid/path', '%2F%2Funtrusted.invalid%2Fpath'],
+    ['a/b?x=1#section%2F', 'a%2Fb%3Fx%3D1%23section%252F'],
+  ])('keeps dynamic department identifiers inside the same-origin API path: %s', async (id, encoded) => {
+    const api = await import('./api');
+    const token = crypto.randomUUID() + crypto.randomUUID();
+    vi.mocked(fetch).mockResolvedValueOnce(reply({ access_token: token, token_type: 'Bearer' }));
+    await api.login('synthetic', crypto.randomUUID());
+    vi.mocked(fetch).mockResolvedValueOnce(reply({ id }, '"v1"'));
+    const detail = await api.getDepartment(id);
+    vi.mocked(fetch).mockResolvedValueOnce(reply({ version_no: 2 }));
+    await api.updateDepartment(id, { code: 'D01', name: 'Name', parent_id: null, status: 'ACTIVE' }, detail.etag);
+    for (const [url, options] of vi.mocked(fetch).mock.calls.slice(1)) {
+      expect(url).toBe('/api/v1/departments/' + encoded);
+      expect(new URL(String(url), 'https://hrms.invalid').origin).toBe('https://hrms.invalid');
+      const correctHeader = (options?.headers as Record<string, string>).Authorization === 'Bearer ' + token;
+      expect(correctHeader).toBe(true);
+      expect(options?.credentials).toBe('omit');
+      expect(options?.redirect).toBe('error');
+    }
+  });
 });

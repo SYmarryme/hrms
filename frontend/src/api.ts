@@ -72,10 +72,10 @@ export async function logout(): Promise<void> {
 
 export async function listDepartments(q = '', page = 1, pageSize = 20): Promise<DepartmentPage> {
   const query = new URLSearchParams({ q, page: String(page), page_size: String(pageSize) });
-  return (await request('/departments?' + query)).data;
+  return (await request(`/departments?${query.toString()}`)).data;
 }
 export async function getDepartment(id: string): Promise<{ item: DepartmentRecord; etag: string }> {
-  const result = await request('/departments/' + encodeURIComponent(id));
+  const result = await request(`/departments/${encodeURIComponent(id)}`);
   if (!result.etag || !/^"v[1-9]\d*"$/.test(result.etag)) throw new ApiError(0, 'INVALID_RESPONSE', '服务未返回可用的部门版本');
   return { item: result.data, etag: result.etag };
 }
@@ -83,5 +83,5 @@ export async function createDepartment(input: DepartmentInput): Promise<Departme
   return (await request('/departments', { method: 'POST', body: JSON.stringify(input) })).data;
 }
 export async function updateDepartment(id: string, input: DepartmentInput, etag: string): Promise<DepartmentRecord> {
-  return (await request('/departments/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(input) }, etag)).data;
+  return (await request(`/departments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) }, etag)).data;
 }
