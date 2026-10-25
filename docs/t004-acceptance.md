@@ -13,9 +13,15 @@ cookie_outside_path=true，browser_result=FAIL。这里只登记用户回传摘�
 该阶段已排除旧固定名称干扰；本次最新属性对比进一步定位到 Vite 之后的响应链转换。
 本轮新增分层属性/路径/次数诊断与真实 Chromium 网络测试，原 7 项测试文件保留不变。
 原 7 项于 10c34dd 用户回传通过；上轮 Chromium 已有失败证据。
-新直连 Vite / 公网 A/B 对比和新增 8 项判定测试 **NOT_RUN**，其余未逐项回传不补造结果。
+用户现已确认 CloudStudio 本机/公网 A/B 完成：本机 Path=/api/v1/poc/、SameSite=Lax，
+当前公网 Path=/、SameSite=None，结果 **BLOCKED_CURRENT_PUBLIC_ENTRY**，边界 **AFTER_LOOPBACK_VITE**。
+仅指当前入口；没有指认内部具体组件或证明全部 CloudStudio 入口有同样问题。
+新增 8 项比较判定单元测试未获单独回传，仍 NOT_RUN；其余未逐项回传不补造结果。
+暂停改写 Cookie 实现/统计；[官方支持说明](cloudstudio-support-issue.md)已准备但未发送。
+新[8000/重启验收指令与脚本](t004-remaining-acceptance.md)仅文件准备，云端仍 NOT_RUN。
 前置 T-001～T-003 已于 2026-10-25 获用户确认通过。
-验收不得只依据脚本退出 0；以下每项须有相同代码提交对应的真实证据。
+验收不得只依据脚本退出 0；每项须记录真实脚本提交及实际服务提交，不能把新 HEAD 冒充仍运行的旧服务。
+SQLite 重启前后项目 HEAD 必须一致；未重启服务时可独立使用新端口脚本收集原服务的证据。
 
 | 编号 | 断言/所需证据 | 当前状态 |
 |---|---|---|
@@ -23,7 +29,7 @@ cookie_outside_path=true，browser_result=FAIL。这里只登记用户回传摘�
 | T004-02 | Vue/健康检查可运行，但完整浏览器 Cookie 断言受当前入口属性改写阻断 | BLOCKED（依赖当前入口） |
 | T004-03 | 证书验证开启的 HTTPS 脚本通过，健康响应 commit 与本次交付一致 | NOT_RUN |
 | T004-04 | 伪造 Forwarded/X-Forwarded-* 经代理被清除/替换；直连 Uvicorn 不据伪造头更改 scheme | NOT_RUN |
-| T004-05 | 用户报告 Vite 严格属性在 Chromium 侧变宽，EDGE_SET_COOKIE_TRANSFORM | BLOCKED（当前公网入口不符合安全契约） |
+| T004-05 | Chromium EDGE_SET_COOKIE_TRANSFORM + 用户 A/B 确认 AFTER_LOOPBACK_VITE | BLOCKED_CURRENT_PUBLIC_ENTRY（当前入口；其他入口未证实） |
 | T004-06 | 仅 3000 平台公网映射；8000 本机 loopback；从外部网络核对平台未提供可独立访问的 API 入口 | NOT_RUN |
 | T004-07 | Vite 只服务隔离前端，外部对已存在的无敏感 canary 的 /@fs 请求被拒绝 | NOT_RUN |
 | T004-08 | SQLite prepare、重启前 verify 通过；下载独立回执保存 | NOT_RUN |
@@ -34,6 +40,8 @@ cookie_outside_path=true，browser_result=FAIL。这里只登记用户回传摘�
 **不能自动证明的项**：脚本从工作空间自身访问公网域名不等于独立外网验证；
 `ss` 监听 loopback 不等于平台没有二次端口映射；只重启应用不等于工作空间暂停/重启；
 SQLite verify 的 PASS 仅说明当前内容吻合，重启事实另需人工证据。
+本轮重启包装脚本改用 CONTENT_MATCH 表述，只核对原回执 SHA-256 和原库，不能自动证明 UI 重启。
+T004-10 数据库部分与恢复后浏览器部分分开收证；Cookie 仍 BLOCKED 时不得将整行或整个 T-004 标为 PASS。
 诊断 Cookie 不是真实登录/CSRF/权限测试；这些属于后续已批准任务。
 
 目录或网络能力不足时标记 BLOCKED/FAIL 并留证，不能清空库重建后称持久化通过，

@@ -13,15 +13,23 @@ T-004 独立验收，当前入口 Cookie 兼容性 BLOCKED，M00 Gate 未通过�
 **优先：[平台兼容性结论与直连 Vite/公网对比](docs/t004-platform-compatibility.md)**。
 用户证据已表明 Path=/api/v1/poc/、SameSite=Lax 在 Vite 之后变为 /、None；
 不再重写前端检测或放宽属性。官方公开文档未找到透传控制项，平台全局能力尚待官方确认。
-本轮只增安全测试和文档；可对仍在运行的旧服务执行属性 A/B，不必重建环境。
+用户已确认本机/公网 A/B 为 BLOCKED_CURRENT_PUBLIC_ENTRY，异常边界 AFTER_LOOPBACK_VITE；
+仅限当前入口，不能推断所有 CloudStudio 入口相同。暂停继续改写 Cookie 测试逻辑。
+已准备[官方支持技术问题说明](docs/cloudstudio-support-issue.md)，尚未代发。
 部署入口调整仅是[未批准 CR 草案](docs/cr-deploy-cookie-001.md)，不修改批准设计或自动迁移。
 
-**下一步：[T-004 CloudStudio 执行指令](docs/t004-execution.md)**。
+**下一步：[8000 外部隔离与 SQLite 工作空间重启验收](docs/t004-remaining-acceptance.md)**。
+包含准确命令、外部浏览器补证、重启前独立回执保存和恢复后原库只读验证；新脚本云端 NOT_RUN。
+两项通过不会解除当前 Cookie 阻断或自动通过 T-004，不更换正式部署架构。
+课程 start.sh/preview.yml 只准备了独立对照提案，未实施，也未假定可以修复 Cookie 改写。
+
+[原 T-004 CloudStudio 执行指令](docs/t004-execution.md)
 包含独立环境安装、前端 3000 同源代理到 loopback 8000、HTTPS/转发头/Cookie 检查、
 浏览器与平台端口证据，以及 SQLite 跨工作空间暂停/重启持久化。
 `10c34dd` 的原 7 项回归已获用户回传通过，但真实浏览器仍 outside=1，因此 T-004 未通过。
 上一轮[真实浏览器分层诊断](docs/t004-cookie-wire-diagnostics.md)已收到属性转换证据。
-本轮保留全部旧测试，仅补本机/公网 A/B 和部署评估；新对比 `NOT_RUN`，见[独立验收表](docs/t004-acceptance.md)。
+保留全部旧 Cookie 测试和安全要求；实际 A/B 已回传阻断，新增 8 项比较单元测试未单独回传仍 NOT_RUN，
+见[独立验收表](docs/t004-acceptance.md)。
 新依赖仅装入 `var/m00/t004-env.<随机后缀>`，不改变已通过的 M00 环境或锁文件。
 
 依赖已按该次真实 `pip freeze --all` 固定，未调整已验证版本。

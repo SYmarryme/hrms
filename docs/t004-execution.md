@@ -4,7 +4,9 @@
 最新结论：当前公网入口 Cookie 属性改写，T004-05/完整浏览器验收 BLOCKED。
 先阅读[平台兼容性与直连 A/B 对比](t004-platform-compatibility.md)，不要循环重写应用 Cookie 代码。
 以下安装/启动/全流程保留作历史步骤及今后平台入口正式变更后的复测说明。
-当前先只运行兼容性文档中的既有服务 A/B，不因已定位的网关属性转换而反复重装应用或浏览器。
+用户已确认既有服务 A/B 为 BLOCKED_CURRENT_PUBLIC_ENTRY / AFTER_LOOPBACK_VITE。
+当前改按[8000 外部隔离与 SQLite 工作空间重启](t004-remaining-acceptance.md)继续独立验收，
+不再重写 Cookie 检测或反复重装应用/浏览器；[官方支持说明](cloudstudio-support-issue.md)仅准备未发送。
 未收到逐项证据的其他项目仍待验证，T-004 未通过。
 T-001～T-003 已获用户验收，代码基线见 `docs/acceptance.md`。
 本任务按正式 T-004 准备临时 Vue/TypeScript/Vite + FastAPI GET-only 健康夹具，

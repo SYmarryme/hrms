@@ -19,7 +19,9 @@ T004-05 与依赖该入口的完整浏览器验收标记 BLOCKED；T-004/M00 Gat
 浏览器在 `/api/v1/poc-outside/cookie-check` 发送该 Cookie，报告 FAIL/EDGE_SET_COOKIE_TRANSFORM。
 据此定位为 **Vite 之后至浏览器收到响应之间发生属性转换**；浏览器在按变宽后的有效范围发送，
 不是前端计数造成，也不是浏览器违背原本仍有效的窄 Path。
-目前不能只据此指认 CloudStudio 内部的具体代理组件；直连 Vite 的独立 A/B 复核仍待云端执行。
+用户随后确认已在 CloudStudio 完成独立 A/B：loopback FastAPI/Vite 严格，当前公网响应变宽，
+结果 `BLOCKED_CURRENT_PUBLIC_ENTRY`、边界 `AFTER_LOOPBACK_VITE`。
+这进一步定位到本机 Vite 之后，但仍不能指认 CloudStudio 内部的具体代理组件。
 原报告的实际采集时间、原始日志路径等未提供，本仓库不补造。
 
 ## 官方配置核查（2026-10-25）
@@ -79,7 +81,9 @@ printf 'COMPARE_COMMAND_EXIT_CODE=%s\n' "$?"
   如 Chromium 仍被改写，提示与客户端/预览嵌入场景相关的策略，需厂商解释并重跑实际浏览器。
 
 脚本只报告路径、诊断名称、次数/属性及 commit，不保存 Cookie jar、值、原始头或日志。
-新的实际 A/B 比较目前 NOT_RUN。原 7 项回归及上轮 8 项分类测试保留不变。
+实际 A/B 比较已由用户确认，结果 BLOCKED_CURRENT_PUBLIC_ENTRY / AFTER_LOOPBACK_VITE。
+本仓库只记录脱敏摘要，未收到本次完整运行提交/时间，不补造。
+暂停继续改写 Cookie 检测。原 7 项回归及上轮 8 项分类测试保留不变。
 新增 8 项纯内存比较判定测试可在云端运行，产物同样放忽略目录：
 
 ```bash
@@ -92,7 +96,8 @@ printf '%s\n' "$test_rc" > "$test_dir/exit-code.txt"
 printf 'COMPARE_UNIT_EXIT_CODE=%s; artifacts=%s\n' "$test_rc" "$test_dir"
 ```
 
-这些新增测试在 Windows 未执行，也不冒充 CloudStudio 运行证据。
+上述 8 项纯内存比较判定测试在 Windows 未执行，用户未单独回传其结果，仍记 NOT_RUN；
+不要把实际 A/B 已完成错误地扩展成所有新增单元测试已通过。
 
 ## 给厂商的最小问题清单（仅准备，尚未发送）
 
@@ -106,6 +111,8 @@ printf 'COMPARE_UNIT_EXIT_CODE=%s; artifacts=%s\n' "$test_rc" "$test_dir"
 若厂商给出支持的方法，最小改动仅限受控平台入口配置；记录官方说明、前后对比和回滚方式，
 然后运行本脚本、原 7 项回归及原真实 Chromium 测试，并由用户确认浏览器 PASS 后才解除阻断。
 未授权发送工单/邮件，本轮不会代发。
+可直接交给用户填写并提交的完整说明见[官方支持技术问题说明](cloudstudio-support-issue.md)。
+剩余 8000 隔离和 SQLite 工作空间重启验收见[独立步骤与判据](t004-remaining-acceptance.md)，状态 NOT_RUN。
 
 ## 影响范围与部署评估
 
@@ -118,3 +125,5 @@ printf 'COMPARE_UNIT_EXIT_CODE=%s; artifacts=%s\n' "$test_rc" "$test_dir"
 否则评估 CloudStudio 仅作开发/集成环境，独立可控 HTTPS 单入口承载后续验证/部署。
 在同一个会改写响应的 CloudStudio 网关后再套一层 Nginx，不能保证消除最后一跳的改写。
 未获用户正式确认前不迁移、不购买、不部署、不改七份批准设计。
+当前按用户要求暂不更换正式部署架构，也不新增 start.sh/preview.yml；
+如需尝试课程启动方式，只按官方支持说明中的独立对照提案另行评审，不假定可修复 Cookie 改写。

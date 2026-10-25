@@ -1,6 +1,6 @@
 {
   "recorded_on": "2026-10-25",
-  "source": "User-provided sanitized Chromium diagnostic summary; no raw report or log published",
+  "source": "User-provided sanitized Chromium summary and subsequent CloudStudio loopback/public A/B confirmation; no raw report or log published",
   "related_diagnostic_delivery": "17b8eb6fa7f18a58dda27a5b4f7c1b4570ded2ea",
   "execution_time_and_full_report_commit": "Not restated in this user summary; do not invent",
   "backend_set_cookie": { "path": "/api/v1/poc/", "sameSite": "lax" },
@@ -12,5 +12,17 @@
   "reported_finding": "EDGE_SET_COOKIE_TRANSFORM",
   "acceptance_status": "BLOCKED_CURRENT_PUBLIC_ENTRY",
   "global_platform_capability": "NOT_ESTABLISHED",
-  "new_loopback_vs_https_comparison": "NOT_RUN"
+  "new_loopback_vs_https_comparison": "USER_REPORTED_COMPLETED",
+  "ab_confirmation": {
+    "local_fastapi_and_loopback_vite": { "path": "/api/v1/poc/", "sameSite": "lax" },
+    "current_public_https": { "path": "/", "sameSite": "none" },
+    "result": "BLOCKED_CURRENT_PUBLIC_ENTRY",
+    "boundary": "AFTER_LOOPBACK_VITE",
+    "script_delivery_available": "22424b048e610f57426feaccbc3610677d45e162",
+    "actual_execution_time_and_service_commit": "Not supplied in the latest summary; no assumption made",
+    "specific_internal_proxy_component": "NOT_IDENTIFIED",
+    "other_cloudstudio_entries": "NOT_TESTED_OR_ESTABLISHED"
+  },
+  "remaining_port_isolation_and_workspace_restart": "NOT_RUN",
+  "formal_T004_acceptance": "NOT_GRANTED"
 }
