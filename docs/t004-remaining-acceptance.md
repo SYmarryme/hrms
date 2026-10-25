@@ -3,8 +3,50 @@
 当前入口 Cookie 已由用户 A/B 证据确认为 `BLOCKED_CURRENT_PUBLIC_ENTRY`，边界
 `AFTER_LOOPBACK_VITE`。暂停改写 Cookie 检测，见[官方支持说明（尚未发送）](cloudstudio-support-issue.md)。
 以下只收集两项独立证据；它们通过也不会让 T-004/M00 Gate 通过。
-新脚本只在 Windows 编写/静态审查，CloudStudio 运行状态均为 **NOT_RUN**。
+脚本交付时为 NOT_RUN；最新用户回传已完成真实工作空间重启：基线退出 0，原回执/哈希独立保存，
+after 的 T004_RESTART_EXIT_CODE=0、AFTER_RESTART_EXIT_CODE=0。
+数据库部分按原脚本语义登记 **USER_REPORTED_PASS，完整 CONTENT_MATCH 日志待核对**。
+8000 本机隔离用户回传通过；Edge 无痕跳登录页，外部隔离仍 INCOMPLETE。
+见[最新验收表](t004-acceptance.md)与[脱敏摘要](evidence/t004-restart-isolation-summary.json)。
+下述 before/after 为保留的原操作流程，**本次只需核对已有产物，不要重建基线**。
 不修改正式部署架构，不安装依赖，不改变现有 `.venv`、锁文件、Cookie 或 Vite Host 设置。
+
+## 最新回传后的日志核对
+
+用户已确认实际工作空间停止/重启；原 after 分支退出 0 只有在回执哈希和原库验证均成功后才返回，
+对应 result=CONTENT_MATCH。当前只收到退出码摘要，不补造已经读到完整日志的证据。
+在 CloudStudio 私下核对原 before/after 的完整 result.json 和退出码；不要把整个 JSON 提交或贴出，
+其中包含原 receipt SHA-256。只对**原 after 输出的 artifacts 目录**执行下列只读投影：
+
+```bash
+read -r -p '原 after 运行的 result.json 绝对路径: ' T004_AFTER_RESULT
+python3 -B - "$T004_AFTER_RESULT" <<'PY'
+import json, re, sys
+from pathlib import Path
+r = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+v = r.get('verification', {})
+if (r.get('action') != 'after' or r.get('result') != 'CONTENT_MATCH'
+        or v.get('logical_content') != 'MATCH' or v.get('integrity') != 'ok'
+        or v.get('workspace_restart') != 'MANUAL_EVIDENCE_REQUIRED'
+        or not re.fullmatch('[0-9a-f]{40}', v.get('prepared_commit', ''))):
+    raise SystemExit('原 after 产物不满足 CONTENT_MATCH 核对要求；保留证据并排查')
+print(json.dumps({'action': 'after', 'result': 'CONTENT_MATCH',
+    'logical_content': 'MATCH', 'integrity': 'ok',
+    'prepared_commit': v['prepared_commit'],
+    'workspace_restart': 'MANUAL_EVIDENCE_REQUIRED'}, indent=2))
+PY
+printf 'CONTENT_LOG_REVIEW_EXIT_CODE=%s\n' "$?"
+```
+
+同时私下确认：原 before=BASELINE_READY、退出 0；原回执与独立原 SHA-256 一致；
+prepared_commit 对应原重启前后同一 HEAD；本次 after 及其 exit-code.txt 的 0 对应同一次执行。
+本命令只读取既有 JSON，不访问 DB、不重跑 after，不受现在文档更新后的 HEAD 变化影响。
+不展示 SHA-256、marker、DB 路径、回执正文或原始日志；仅回传上述脱敏投影和核对结论。
+MANUAL_EVIDENCE_REQUIRED 是脚本保留的语义；用户本次已明确确认 UI 重启，该字段不否认这次实际操作。
+若原产物缺失则继续 LOG_REVIEW_PENDING；若内容不符，回退 USER_REPORTED_PASS 并调查，不能改 JSON 或重做基线冒充。
+
+8000 下一步只补：独立外部已登录普通浏览器结果、同场景 3000 正控制、平台映射记录及观测前后后端存活。
+无痕跳转登录页只能证明本次匿名请求被登录校验拦截；不证明没有可供拥有者直达的后端路由。
 
 ## 0. 一次更新，保留当前服务
 

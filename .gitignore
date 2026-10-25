@@ -26,6 +26,9 @@
 .npmrc
 .pypirc
 # Databases, logs, backups and all experiment output
+# Independently retained private restart receipts, including copies at the root
+receipt.json
+receipt.sha256
 *.db
 *.db-*
 *.sqlite

@@ -1,0 +1,39 @@
+{
+  "source": "Latest user-provided CloudStudio execution summary; no private artifacts or raw logs supplied or published",
+  "related_script_delivery": "1d1278ba74ff8ef11881102607bd4770914548af",
+  "actual_execution_commit_and_timestamps": "Not supplied; related delivery is not a claim about the actual runtime commit",
+  "sqlite_restart": {
+    "before_exit_code": 0,
+    "original_receipt_and_sha256_independently_saved": true,
+    "actual_workspace_stop_and_restart": "USER_CONFIRMED",
+    "after_used_original_receipt_and_sha256": true,
+    "T004_RESTART_EXIT_CODE": 0,
+    "AFTER_RESTART_EXIT_CODE": 0,
+    "database_acceptance": "USER_REPORTED_PASS",
+    "full_content_match_log_review": "PENDING",
+    "script_semantics": "For the original after branch, exit 0 follows receipt hash validation and original read-only database verification, producing CONTENT_MATCH",
+    "expected_log_fields_to_review": {
+      "action": "after",
+      "result": "CONTENT_MATCH",
+      "verification.logical_content": "MATCH",
+      "verification.integrity": "ok",
+      "verification.workspace_restart": "MANUAL_EVIDENCE_REQUIRED"
+    },
+    "expected_fields_are_not_a_transcription_of_received_raw_logs": true,
+    "scope": "Reported original marker database in the tested workspace across this stop/restart only; not production storage, backup recovery or continuous availability"
+  },
+  "port_8000": {
+    "local_isolation": "USER_REPORTED_PASS",
+    "edge_incognito_observation": "Restricted-port access redirected to CloudStudio login page",
+    "authenticated_external_browser": "NOT_REPORTED",
+    "frontend_3000_positive_control_in_same_external_context": "NOT_REPORTED",
+    "platform_mapping_and_pre_post_backend_liveness_evidence": "NOT_FULLY_REPORTED",
+    "external_isolation_acceptance": "INCOMPLETE",
+    "interpretation": "Login redirect demonstrates this anonymous request was challenged; it does not prove there is no independently reachable backend route"
+  },
+  "cookie_acceptance": "BLOCKED_CURRENT_PUBLIC_ENTRY",
+  "cookie_boundary": "AFTER_LOOPBACK_VITE",
+  "all_cloudstudio_entries_affected": "NOT_ESTABLISHED",
+  "formal_T004_acceptance": "NOT_GRANTED",
+  "published_private_receipt_hash_database_credentials_cookie_values_or_raw_logs": false
+}

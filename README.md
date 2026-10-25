@@ -19,7 +19,9 @@ T-004 独立验收，当前入口 Cookie 兼容性 BLOCKED，M00 Gate 未通过�
 部署入口调整仅是[未批准 CR 草案](docs/cr-deploy-cookie-001.md)，不修改批准设计或自动迁移。
 
 **下一步：[8000 外部隔离与 SQLite 工作空间重启验收](docs/t004-remaining-acceptance.md)**。
-包含准确命令、外部浏览器补证、重启前独立回执保存和恢复后原库只读验证；新脚本云端 NOT_RUN。
+SQLite 实际工作空间重启与原回执 after 已获用户回传退出 0，数据库部分 USER_REPORTED_PASS，
+完整 CONTENT_MATCH 日志仍待核对。8000 本机检查用户回传通过；无痕跳登录页不足以通过外部隔离。
+该说明包含安全日志核对命令与仍需补充的外部浏览器/平台证据，无需重建已完成的数据库基线。
 两项通过不会解除当前 Cookie 阻断或自动通过 T-004，不更换正式部署架构。
 课程 start.sh/preview.yml 只准备了独立对照提案，未实施，也未假定可以修复 Cookie 改写。
 

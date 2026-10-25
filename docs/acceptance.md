@@ -26,8 +26,12 @@ T-004：当前公网入口 **BLOCKED**。用户回传 FastAPI/Vite 严格的 Pat
 用户进一步回传直连 A/B：BLOCKED_CURRENT_PUBLIC_ENTRY，边界 AFTER_LOOPBACK_VITE；
 不等于所有平台入口永久不支持。官方透传方法仍未获证实，Cookie 测试逻辑暂停改写。
 原 7 项回归通过不解除该阻断；详见平台兼容性结论及 CR-DEPLOY-COOKIE-001 未批准草案。
-8000 外部隔离、SQLite 工作空间重启的新独立脚本和操作说明已准备，运行 NOT_RUN，
-详见 [剩余验收](t004-remaining-acceptance.md)。官方支持说明仅准备未代发，正式部署架构未更换。
+最新用户确认：SQLite 基线退出 0、原回执/哈希独立保存、实际停止并重启工作空间，
+原回执 after 验证 T004_RESTART_EXIT_CODE=0、AFTER_RESTART_EXIT_CODE=0。
+数据库持久化登记 USER_REPORTED_PASS，完整 CONTENT_MATCH 日志仍待核对；不代表恢复后浏览器验收通过。
+8000 本机隔离 USER_REPORTED_PASS，无痕跳转登录页仅是受限访问观测，外部隔离 INCOMPLETE。
+详见 [最新验收表](t004-acceptance.md)及[安全日志核对/剩余步骤](t004-remaining-acceptance.md)。
+官方支持说明仅准备未代发，正式部署架构未更换；T-004 仍未通过。
 T-001～T-003 通过不等于整个 M00 Gate 通过。生产信任与部署：未配置、未验证。
 本地文件准备、静态核验与 Git 同步回执另记 `var/m00/`，不混入云端测试结果。
 只有用户收到真实云端证据并明确验收后，才可变更任务验收状态。

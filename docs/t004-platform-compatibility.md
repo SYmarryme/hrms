@@ -112,7 +112,15 @@ printf 'COMPARE_UNIT_EXIT_CODE=%s; artifacts=%s\n' "$test_rc" "$test_dir"
 然后运行本脚本、原 7 项回归及原真实 Chromium 测试，并由用户确认浏览器 PASS 后才解除阻断。
 未授权发送工单/邮件，本轮不会代发。
 可直接交给用户填写并提交的完整说明见[官方支持技术问题说明](cloudstudio-support-issue.md)。
-剩余 8000 隔离和 SQLite 工作空间重启验收见[独立步骤与判据](t004-remaining-acceptance.md)，状态 NOT_RUN。
+最新 SQLite 工作空间重启已获用户回传原回执 after 退出 0，数据库部分 USER_REPORTED_PASS，完整日志待核对；
+8000 本机用户回传通过，外部无痕跳登录页仍不足以验收隔离，见[最新独立步骤与判据](t004-remaining-acceptance.md)。
+这些独立结果不解除当前入口 Cookie BLOCKED。
+
+当前 Cookie 下一步优先级：由用户向官方提交已有问题说明，补充实际产品版本/区域/入口类型、
+运行服务与诊断脚本提交，以及 Path/SameSite 的脱敏 A/B 表；询问当前入口的改写策略和正式透传办法。
+SQLite 已完成的重启测试无需为 Cookie 问题重复准备；8000 的拥有者浏览器和平台映射证据继续单独补齐。
+官方若提供具体方法，先审阅适用范围和回滚方式，再提出只改入口配置的独立对照，运行原 A/B 与 Chromium 原断言。
+没有官方支持的方法前继续 BLOCKED，不新增猜测参数、不修改安全属性、不自动切换正式部署架构。
 
 ## 影响范围与部署评估
 

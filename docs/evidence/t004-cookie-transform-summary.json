@@ -23,6 +23,6 @@
     "specific_internal_proxy_component": "NOT_IDENTIFIED",
     "other_cloudstudio_entries": "NOT_TESTED_OR_ESTABLISHED"
   },
-  "remaining_port_isolation_and_workspace_restart": "NOT_RUN",
+  "remaining_port_isolation_and_workspace_restart": "See t004-restart-isolation-summary.json: database USER_REPORTED_PASS with log review pending; local port USER_REPORTED_PASS, external isolation INCOMPLETE",
   "formal_T004_acceptance": "NOT_GRANTED"
 }
