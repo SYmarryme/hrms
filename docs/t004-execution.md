@@ -1,10 +1,11 @@
 # T-004 CloudStudio 执行指令
 
 本页为 CloudStudio 操作说明；Windows 不安装或运行项目。
-最新 `10c34dd` 的原 7 项回归通过但真实浏览器仍 FAIL：先执行[分层代理/Chromium 诊断](t004-cookie-wire-diagnostics.md)。
-更新：用户已回传 `b7237e7` 浏览器路径隔离 FAIL，本轮修复与重测仍 NOT_RUN；
-先按[Cookie 路径排查与重测说明](t004-cookie-path-investigation.md)重新安装、运行 7 项回归并重测。
-下述内容保留其他 T-004 操作步骤；未收到逐项证据的项目仍待验证，T-004 未通过。
+最新结论：当前公网入口 Cookie 属性改写，T004-05/完整浏览器验收 BLOCKED。
+先阅读[平台兼容性与直连 A/B 对比](t004-platform-compatibility.md)，不要循环重写应用 Cookie 代码。
+以下安装/启动/全流程保留作历史步骤及今后平台入口正式变更后的复测说明。
+当前先只运行兼容性文档中的既有服务 A/B，不因已定位的网关属性转换而反复重装应用或浏览器。
+未收到逐项证据的其他项目仍待验证，T-004 未通过。
 T-001～T-003 已获用户验收，代码基线见 `docs/acceptance.md`。
 本任务按正式 T-004 准备临时 Vue/TypeScript/Vite + FastAPI GET-only 健康夹具，
 不是 HRMS 应用骨架，不接入员工、工资、正式认证或生产数据库。

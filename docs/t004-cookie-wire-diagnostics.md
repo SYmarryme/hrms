@@ -1,6 +1,11 @@
 # T-004：真实浏览器与代理的 Cookie Path 分层诊断
 
-**未通过；本轮代码、8 项新增分类测试和 Chromium 自动化尚未在 CloudStudio 执行。**
+最新用户回传已出现 EDGE_SET_COOKIE_TRANSFORM：Vite 的窄 Path/Lax 在 Chromium 侧变为 /、None。
+当前入口 BLOCKED，优先执行[平台兼容性结论与本机/公网 A/B](t004-platform-compatibility.md)。
+以下保留上一轮诊断说明，不代表本轮又要求重新安装浏览器或继续修改统计实现。
+
+以下为 17b8eb6 交付时说明；当时 8 项分类测试与 Chromium 待执行，之后用户已回传属性转换失败证据。
+当前入口为 BLOCKED，不能继续将此历史状态表述理解为所有诊断都尚未运行。
 用户已回传 `10c34dd49863ecc87dd3b25b3036cc4ca7e961a7` 的原 7 项回归通过、退出 0，
 但真实页面 outside_name_count=1、inside_name_count=1、legacy=false、request_paths_verified=true，
 因此不能再用旧固定名称干扰解释本次失败。原 7 项回归及其执行脚本原样保留。

@@ -1,24 +1,29 @@
 # T-004 独立验收记录
 
-状态：**T-004 未通过验收；浏览器路径隔离失败，修复待 CloudStudio 重测**。
+状态：**T-004 未通过；当前 CloudStudio 公网入口 Cookie 兼容性 BLOCKED**。
+最新用户证据：FastAPI/Vite 的 Path=/api/v1/poc/、SameSite=Lax，在 Chromium 响应与存储中
+变为 Path=/、SameSite=None，并被发到范围外；报告包含 EDGE_SET_COOKIE_TRANSFORM。
+据此阻断当前入口，不再把问题归为前端统计；不等于所有 CloudStudio 入口永久不支持。
+见[脱敏证据](evidence/t004-cookie-transform-summary.json)及[平台结论/官方资料/直连对比](t004-platform-compatibility.md)。
 2026-10-25 用户回传 `b7237e7b10bc0385228113fe282039c9e92d3476` 的浏览器结果：
 https/same_origin/cookie_received/cookie_hidden_from_js_inside_path 为 true，
 cookie_outside_path=true，browser_result=FAIL。这里只登记用户回传摘要，不补造运行日志。
 后续用户回传 `10c34dd49863ecc87dd3b25b3036cc4ca7e961a7`：原 7 项回归通过、退出 0；
 真实浏览器仍 FAIL，独立本次名称 inside=1/outside=1、legacy=false、实际路径核对 true。
-这排除了旧固定名称干扰的解释；尚不能在浏览器、代理和检测层之间确定唯一根因。
+该阶段已排除旧固定名称干扰；本次最新属性对比进一步定位到 Vite 之后的响应链转换。
 本轮新增分层属性/路径/次数诊断与真实 Chromium 网络测试，原 7 项测试文件保留不变。
-**新代码的 7 项复跑、8 项分类测试、HTTPS 与 Chromium/用户浏览器重测均 NOT_RUN**。
+原 7 项于 10c34dd 用户回传通过；上轮 Chromium 已有失败证据。
+新直连 Vite / 公网 A/B 对比和新增 8 项判定测试 **NOT_RUN**，其余未逐项回传不补造结果。
 前置 T-001～T-003 已于 2026-10-25 获用户确认通过。
 验收不得只依据脚本退出 0；以下每项须有相同代码提交对应的真实证据。
 
 | 编号 | 断言/所需证据 | 当前状态 |
 |---|---|---|
 | T004-01 | 独立安装真实 Python/Node/npm/依赖版本，setup 退出码和候选锁 | NOT_RUN |
-| T004-02 | 外部网络浏览器完整断言通过，含最终路径、独立本次 Cookie；旧版 browser_result=FAIL | FAIL（用户回传）；修复待重测 |
+| T004-02 | Vue/健康检查可运行，但完整浏览器 Cookie 断言受当前入口属性改写阻断 | BLOCKED（依赖当前入口） |
 | T004-03 | 证书验证开启的 HTTPS 脚本通过，健康响应 commit 与本次交付一致 | NOT_RUN |
 | T004-04 | 伪造 Forwarded/X-Forwarded-* 经代理被清除/替换；直连 Uvicorn 不据伪造头更改 scheme | NOT_RUN |
-| T004-05 | 原 7 项回归在 10c34dd 通过；真实浏览器 outside=1 仍 FAIL；现需四层证据与 Chromium 发包验证 | FAIL（用户回传）；新重测 NOT_RUN |
+| T004-05 | 用户报告 Vite 严格属性在 Chromium 侧变宽，EDGE_SET_COOKIE_TRANSFORM | BLOCKED（当前公网入口不符合安全契约） |
 | T004-06 | 仅 3000 平台公网映射；8000 本机 loopback；从外部网络核对平台未提供可独立访问的 API 入口 | NOT_RUN |
 | T004-07 | Vite 只服务隔离前端，外部对已存在的无敏感 canary 的 /@fs 请求被拒绝 | NOT_RUN |
 | T004-08 | SQLite prepare、重启前 verify 通过；下载独立回执保存 | NOT_RUN |

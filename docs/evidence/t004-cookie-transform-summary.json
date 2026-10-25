@@ -1,0 +1,16 @@
+{
+  "recorded_on": "2026-10-25",
+  "source": "User-provided sanitized Chromium diagnostic summary; no raw report or log published",
+  "related_diagnostic_delivery": "17b8eb6fa7f18a58dda27a5b4f7c1b4570ded2ea",
+  "execution_time_and_full_report_commit": "Not restated in this user summary; do not invent",
+  "backend_set_cookie": { "path": "/api/v1/poc/", "sameSite": "lax" },
+  "vite_set_cookie": { "path": "/api/v1/poc/", "sameSite": "lax" },
+  "chromium_response_set_cookie": { "path": "/", "sameSite": "none" },
+  "chromium_stored_cookie": { "path": "/", "sameSite": "none" },
+  "outside_request": { "path": "/api/v1/poc-outside/cookie-check", "cookie_sent": true },
+  "reported_result": "FAIL",
+  "reported_finding": "EDGE_SET_COOKIE_TRANSFORM",
+  "acceptance_status": "BLOCKED_CURRENT_PUBLIC_ENTRY",
+  "global_platform_capability": "NOT_ESTABLISHED",
+  "new_loopback_vs_https_comparison": "NOT_RUN"
+}
