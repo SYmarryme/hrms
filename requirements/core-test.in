@@ -1,0 +1,3 @@
+-r core.in
+pytest==8.4.2
+httpx>=0.27,<1

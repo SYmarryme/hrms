@@ -1,5 +1,35 @@
 # HRMS
 
+当前优先交付正式 HRMS 登录与系统主页，入口为 **backend/** 和 **frontend/**。
+CloudStudio 公网部署改为可选目标，M00/T-004 历史部署验收不再阻断核心功能开发。
+Windows 只编写/静态检查/提交推送；安装、迁移、启动和真实测试仍全部在 Ubuntu 完成。
+
+本批代码：Argon2id、服务器随机不透明 Bearer、数据库仅存摘要、登录/当前用户/退出、
+受控首次管理员 CLI、固定30天/空闲24小时/最多5会话/5分钟last_seen节流，以及正式Vue登录页和保护主页。
+Token仅在JS私有内存，刷新/新标签重新登录；没有公开注册、JWT、refresh、Cookie回退或演示权限绕过。
+当前安装、自动化测试、Vue类型检查/构建与页面验收均为 **NOT_RUN（等待用户Ubuntu执行）**。
+代码准备/静态审查不能冒充运行通过；下一批才做员工、部门和组织业务。
+
+完整最少命令与边界见[第一批登录操作说明](docs/core-login.md)。Ubuntu项目根目录：
+
+```bash
+git pull --ff-only origin main
+bash scripts/core/setup.sh
+var/core/venv/bin/python -m alembic -c backend/alembic.ini upgrade head
+read -r -p '首次管理员账号: ' HRMS_ADMIN_USERNAME
+var/core/venv/bin/python -m backend.cli init-admin --username "$HRMS_ADMIN_USERNAME"
+bash scripts/core/test.sh
+read -r -p '实际页面origin（公网HTTPS或Ubuntu本机http://127.0.0.1:3000）: ' HRMS_PUBLIC_ORIGIN
+export HRMS_PUBLIC_ORIGIN
+bash scripts/core/start.sh
+```
+
+每步成功后再继续。初始密码仅CLI私密交互输入两次，无默认值；不要在命令、.env或Git中放密码/Token。
+默认正式数据var/hrms/app.sqlite3，与M00实验分离；不会自动清库或重置已有管理员。
+用户本轮明确的Bearer/会话约束作为实现依据；私密原文不改动，新整合候选不冒充已签收。
+
+以下为 **M00历史记录**；保留真实PASS/FAIL/BLOCKED，不再作为本批功能开发的前置条件。
+
 企业员工管理系统的 M00 准备仓库，包含 T-001～T-003 的基线记录、
 Ubuntu 环境检查和 SQLite/Alembic 独立实验，以及 T-004 的隔离健康检查夹具与测试脚本。
 没有实现员工、考勤、工资业务；当前 CloudStudio 公网入口改写 Cookie 属性，T-004 对应项 BLOCKED，部署尚未验收。
