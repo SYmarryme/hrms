@@ -37,7 +37,7 @@ class Database:
     def check_revision(self):
         from backend.models import metadata
         with self.transaction() as session:
-            if session.execute(text('SELECT version_num FROM alembic_version')).scalar_one() != 'identity_0001':
+            if session.execute(text('SELECT version_num FROM alembic_version')).scalar_one() != 'departments_0002':
                 raise RuntimeError('Run the reviewed Alembic upgrade before starting HRMS')
             tables = set(session.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).scalars())
             if not set(metadata.tables).issubset(tables):
@@ -47,3 +47,8 @@ class Database:
             indexes = session.connection().exec_driver_sql("PRAGMA index_list('audit_events')").fetchall()
             if not any(row[1] == 'uq_initial_admin_success' and row[2] == 1 and row[4] == 1 for row in indexes):
                 raise RuntimeError('Initial administrator uniqueness index missing')
+            if not any(row[1] == 'uq_first_hr_success' and row[2] == 1 and row[4] == 1 for row in indexes):
+                raise RuntimeError('First HR uniqueness index missing')
+            triggers = set(session.execute(text("SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='departments'")).scalars())
+            if not {'department_status_insert', 'department_status_update'}.issubset(triggers):
+                raise RuntimeError('Department state guards missing')

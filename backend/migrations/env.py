@@ -13,7 +13,7 @@ with database.engine.connect() as connection:
         raise RuntimeError('Existing unversioned database; refusing to adopt or overwrite it')
     if 'alembic_version' in tables:
         versions = connection.exec_driver_sql('SELECT version_num FROM alembic_version').scalars().all()
-        if versions not in ([], ['identity_0001']) or (not versions and len(tables) > 1):
+        if versions not in ([], ['identity_0001'], ['departments_0002']) or (not versions and len(tables) > 1):
             raise RuntimeError('Foreign or partial migration baseline; refusing to adopt it')
         if versions and not set(metadata.tables).issubset(tables):
             raise RuntimeError('Versioned database is missing required tables; refusing to repair it implicitly')

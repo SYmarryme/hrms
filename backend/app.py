@@ -13,6 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from backend.auth import AuthError, AuthService
 from backend.database import Database
+from backend.departments import DepartmentService, make_router
 from backend.settings import Settings
 
 
@@ -28,7 +29,8 @@ class LoginBodyLimit:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http' or scope.get('path') != '/api/v1/auth/login':
+        if (scope['type'] != 'http' or scope.get('method') not in ('POST', 'PATCH')
+                or not scope.get('path', '').startswith('/api/v1/')):
             return await self.app(scope, receive, send)
         body = bytearray()
         while True:
@@ -74,6 +76,7 @@ def create_app(settings=None, clock=None):
     app = FastAPI(title='HRMS', docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.auth = auth
     app.state.database = database
+    app.state.departments = DepartmentService(database, auth)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=[urlsplit(settings.public_origin).hostname, '127.0.0.1', 'localhost'])
 
     def failure(request, status, code, message):
@@ -99,11 +102,12 @@ def create_app(settings=None, clock=None):
             source_missing = write and origin is None and ref_origin != settings.public_origin
             if (source_bad or source_missing or request.headers.get('sec-fetch-site') in ('cross-site', 'same-site')):
                 response = failure(request, 403, 'AUTHORIZATION_DENIED', '请求来源不被允许')
-            elif request.url.query:
+            elif request.url.path.startswith('/api/v1/auth/') and request.url.query:
                 response = failure(request, 400, 'INVALID_REQUEST', '认证接口不接受查询参数')
-            elif (request.url.path == '/api/v1/auth/login' and request.method == 'POST'
+            elif ((request.url.path == '/api/v1/auth/login' or request.url.path.startswith('/api/v1/departments'))
+                  and request.method in ('POST', 'PATCH')
                   and request.headers.get('content-type', '').split(';')[0].lower() != 'application/json'):
-                response = failure(request, 415, 'INVALID_REQUEST', '登录请求必须使用JSON')
+                response = failure(request, 415, 'INVALID_REQUEST', '写入请求必须使用JSON')
             else:
                 response = await call_next(request)
         else:
@@ -131,7 +135,7 @@ def create_app(settings=None, clock=None):
     @app.get('/api/v1/health')
     def health():
         database.check_revision()
-        return {'status': 'ok', 'application': 'hrms', 'schema': 'identity_0001'}
+        return {'status': 'ok', 'application': 'hrms', 'schema': 'departments_0002'}
 
     @app.post('/api/v1/auth/login')
     def login(payload: LoginInput, request: Request):
@@ -149,5 +153,6 @@ def create_app(settings=None, clock=None):
         auth.logout(bearer(request), request.state.request_id)
         return Response(status_code=204)
 
+    app.include_router(make_router(bearer))
     app.add_middleware(LoginBodyLimit)
     return app

@@ -35,8 +35,9 @@ onMounted(load);
           <dl><dt>账号状态</dt><dd>{{ profile.status === 'ACTIVE' ? '正常' : profile.status }}</dd>
             <dt>当前有效角色</dt><dd>{{ profile.roles.join('、') || '尚未分配有效角色' }}</dd>
             <dt>会话固定到期时间（UTC）</dt><dd>{{ profile.session.expires_at }}</dd></dl></section>
-        <section class="card"><h2>功能开发进度</h2><p>登录、当前账号查询和退出已接入正式后端。</p>
-          <p class="muted">员工、部门与组织管理将在下一批开发。本页不提供尚未实现的业务操作。</p></section>
+        <section class="card"><h2>组织管理</h2><p>查询部门、查看层级与人数，由授权HR维护部门基础信息。</p>
+          <router-link class="primary-link" to="/departments">进入部门管理</router-link>
+          <p class="muted">员工、考勤及薪酬模块尚未开发。</p></section>
       </template>
     </main>
   </div>
