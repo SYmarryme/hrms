@@ -2,7 +2,11 @@
 
 状态：**T-004 未通过；当前 CloudStudio 公网入口 Cookie 兼容性 BLOCKED**。
 当前用户指示：暂不继续研究关闭所有者 8000 预览入口，既有隔离结论保留；
-新增[独立 Bearer 三项兼容性实验](t004-bearer.md)，后端回归与真实 Edge 验收均 NOT_RUN。
+独立[Bearer 公网兼容性 PoC](t004-bearer.md)现为 PASS（用户实测回传）：
+代码 8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed，Windows Edge 经 3000 公网 HTTPS 页三项为
+200/401/401，https/edge/same_origin=true、bearer_result=PASS；Bearer 7 项回归通过、退出 0。
+来源见[脱敏摘要](evidence/t004-bearer-summary.json)，不补造原始日志/运行时间或完整安全验证。
+正式认证变更仅准备设计影响分析，尚未批准或实现；本轮不修改批准文档。
 Bearer 只检验 200/401/401，不追踪 Authorization 中间处理；不改变正式认证或 Cookie 方案。
 最新用户证据：FastAPI/Vite 的 Path=/api/v1/poc/、SameSite=Lax，在 Chromium 响应与存储中
 变为 Path=/、SameSite=None，并被发到范围外；报告包含 EDGE_SET_COOKIE_TRANSFORM。
@@ -48,7 +52,7 @@ SQLite 重启前后项目 HEAD 必须一致；未重启服务时可独立使用�
 | T004-09 | 实际停止并重启 CloudStudio 工作空间 | USER_REPORTED_PASS（用户明确确认；具体时间/操作记录未附） |
 | T004-10 | 原库标记/摘要、WAL、FK/integrity；恢复后同源/浏览器 | PARTIAL：数据库 USER_REPORTED_PASS / CONTENT_MATCH 日志待核对；恢复后浏览器未验收且 Cookie BLOCKED |
 | T004-11 | 脱敏退出码/证据、安装锁、平台限制与失败项回传 | PARTIAL：已收到本次摘要，完整脱敏核对/剩余项证据未齐 |
-| 补充实验 T004-BEARER | Edge 在 3000 公网 HTTPS 页实际验证正确/缺失/错误 Token 为 200/401/401 | NOT_RUN；独立结果不得覆盖 Cookie 或 T-004 状态 |
+| 补充实验 T004-BEARER | 8d3f7ec：Windows Edge 公网 HTTPS，200/401/401；Bearer 回归7项退出0 | PASS（USER_REPORTED）；不改变 Cookie、8000 遗留项或 T-004 整体状态 |
 
 T004-06 分项（均来源于用户实测回传，不冒充 Codex 远程复核）：
 

@@ -10,11 +10,13 @@ T-001 哈希 7/7 MATCH、环境检查退出 0、SQLite PoC 13/13 通过。
 验收代码基线：`8d427017e0f91f7c3aa23dd20fefcd8d4e34284a`，证据来源与边界见[验收记录](docs/acceptance.md)。
 T-004 独立验收，当前入口 Cookie 兼容性 BLOCKED，M00 Gate 未通过。
 
-**当前执行：[独立 Bearer Token 三项兼容性验证](docs/t004-bearer.md)**。
+**独立 PoC 已通过：[Bearer Token 三项兼容性验证](docs/t004-bearer.md)**。
 Edge 在 3000 公网 HTTPS 页面验证正确/缺失/错误合成 Token 分别为 200/401/401；
-代码已准备，CloudStudio 回归与真实 Edge 均 NOT_RUN。Token 只临时在内存使用、不输出原文，
+代码 8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed 已获用户回传 Windows Edge 公网 PASS，
+Bearer 自动回归 7 项通过、退出 0。Token 只临时在内存使用、不输出原文，
 不追踪 Authorization 中间处理，不改变 Cookie/正式认证方案；T-004 继续 BLOCKED。
 用户已指示暂不继续研究关闭 8000 所有者预览入口。本轮不新增 start.sh，继续用既有 setup/start。
+正式认证架构变更仅准备本地设计影响分析，尚未批准；不修改七份已批准文档或实现正式登录。
 
 **既有阻断：[平台兼容性结论与直连 Vite/公网对比](docs/t004-platform-compatibility.md)**。
 用户证据已表明 Path=/api/v1/poc/、SameSite=Lax 在 Vite 之后变为 /、None；

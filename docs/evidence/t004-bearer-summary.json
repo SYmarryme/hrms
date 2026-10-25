@@ -1,0 +1,27 @@
+{
+  "source": "User-provided CloudStudio execution and real Windows Edge browser acceptance summary; no raw logs or secret artifacts supplied or published",
+  "tested_commit": "8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed",
+  "execution_timestamp_and_browser_version": "Not supplied; no assumption made",
+  "entry": "CloudStudio port 3000 public HTTPS page",
+  "client": "Microsoft Edge on Windows",
+  "browser": {
+    "bearer_result": "PASS",
+    "https": true,
+    "edge": true,
+    "same_origin": true,
+    "statuses": { "correct": 200, "missing": 401, "wrong": 401 }
+  },
+  "bearer_automated_regressions": { "passed": 7, "exit_code": 0 },
+  "bearer_compatibility_acceptance": "PASS_USER_REPORTED",
+  "original_cookie_regressions_at_this_commit": "Not separately reported in this summary",
+  "raw_log_independent_review": "NOT_PERFORMED",
+  "authorization_chain_investigation": "NOT_PERFORMED_OR_REQUIRED",
+  "scope": "Synthetic Bearer compatibility at this tested entry/client/commit only; not formal login, XSS, production session revocation or permission validation",
+  "cookie_compatibility": "BLOCKED_CURRENT_PUBLIC_ENTRY",
+  "backend_8000_external_isolation": "INCOMPLETE_BLOCKED_CURRENT_ENTRY",
+  "sqlite_existing_evidence": "UNCHANGED",
+  "authentication_architecture_change": "NOT_APPROVED",
+  "formal_login_implementation": "NOT_STARTED",
+  "formal_T004_acceptance": "NOT_GRANTED",
+  "token_values_credentials_cookies_databases_private_receipts_or_raw_logs_published": false
+}

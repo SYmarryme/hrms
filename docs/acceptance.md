@@ -34,6 +34,10 @@ T-004：当前公网入口 **BLOCKED**。用户回传 FastAPI/Vite 严格的 Pat
 整体外部隔离 INCOMPLETE/BLOCKED。该受认证预览不直接认定为匿名公开漏洞。
 详见 [最新验收表](t004-acceptance.md)及[安全日志核对/剩余步骤](t004-remaining-acceptance.md)。
 官方支持说明仅准备未代发，正式部署架构未更换；T-004 仍未通过。
+补充实验 T004-BEARER 已获用户确认 PASS：代码 8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed，
+Windows Edge 经 CloudStudio 3000 公网 HTTPS，正确/缺失/错误 Token 为 200/401/401，
+Bearer 7 项回归通过、退出 0，见[脱敏摘要](evidence/t004-bearer-summary.json)。
+独立 PoC PASS 不批准正式认证变更，不清除 Cookie/8000 阻断，也不表示正式登录/撤销/XSS 已验收。
 T-001～T-003 通过不等于整个 M00 Gate 通过。生产信任与部署：未配置、未验证。
 本地文件准备、静态核验与 Git 同步回执另记 `var/m00/`，不混入云端测试结果。
 只有用户收到真实云端证据并明确验收后，才可变更任务验收状态。

@@ -1,7 +1,12 @@
 # T-004 独立 Bearer Token 兼容性验证
 
-状态：**NOT_RUN，等待 CloudStudio 3000 公网 HTTPS + 真实 Edge 实测**。
-本轮只在 Windows 编写和静态核验，不能据此宣称浏览器通过。
+状态：**PASS（USER_REPORTED），独立 Bearer 公网兼容性 PoC 已获用户实测确认**。
+验收代码：`8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed`。
+用户在 Windows Edge 经 CloudStudio 3000 公网 HTTPS 页面取得 bearer_result=PASS，
+https/edge/same_origin=true，正确/缺失/错误 Token 为 200/401/401；Bearer 自动回归 7 项通过、退出 0。
+见[脱敏验收摘要](evidence/t004-bearer-summary.json)。仅登记明确回传结果，不声称 Codex 已查看原始日志或独立重跑，
+不补造执行时间/浏览器版本。原 Cookie 7 项在本提交的重跑结果未单独回传，不混作本次 Bearer 7 项通过。
+这不是正式登录、XSS、会话撤销或权限测试的通过，也不是认证架构变更批准。
 T-004 仍 BLOCKED；原 Cookie 方案/属性及 SQLite 结果不变，8000 所有者预览问题按用户要求暂不继续研究。
 
 ## 实验边界与判定
@@ -38,7 +43,9 @@ Vite Host 白名单、3000 监听、8000 loopback、原代理和 Cookie 安全�
 
 ## CloudStudio Ubuntu 命令
 
-后端与前端代码都有新增，必须使用本次提交的新隔离环境及新服务，不能让旧服务冒充新提交。
+以下保留为日后复测流程，本次仅登记既有通过结果，**无需因文档更新重新 setup/重建服务**。
+已验收服务提交是上方 8d3f7ec，不能用本次记录提交替换该运行基线；日后重测应另记实际服务提交。
+Bearer 功能初次交付同时新增了前后端代码；日后复测时，setup、服务与实际目标源码提交必须一致，不能混用旧服务。
 在旧 start_t004.sh 的前台终端 Ctrl+C，只停止它自己启动的旧测试进程；不要结束其他用户进程。
 然后在项目根目录：
 
@@ -63,7 +70,7 @@ printf 'COOKIE_REGRESSION_COMMAND_EXIT_CODE=%s\n' "$?"
 ```
 
 预期新增 7 项 ASGI 回归通过，T004_BEARER_TEST_EXIT_CODE=0；原 7 项 Cookie 回归仍应通过。
-两套回归本次均 NOT_RUN，不能把旧提交的 7 项通过记为本次复测通过。
+Bearer 7 项已于上方提交获用户回传通过；原 Cookie 7 项本提交复测未单独回传，不能据此一并标记通过。
 ASGI 回归直接走应用路由/状态码，不代表公网/Edge 验收。产物仅在被忽略的 var/m00 下。
 
 确认两套回归成功后，从 **3000 端口**卡片复制当前公开 HTTPS origin，保持 8000 仅自己可见和本机监听：

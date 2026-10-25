@@ -1,13 +1,13 @@
 # T-004 CloudStudio 执行指令
 
 本页为 CloudStudio 操作说明；Windows 不安装或运行项目。
-当前新增任务优先按[独立 Bearer Token 执行与 Edge 验收](t004-bearer.md)操作。
-本次应用源已变化，需本提交新 setup/服务；不使用旧环境冒充。8000 所有者预览关闭研究暂缓，旧结论保留。
+独立[Bearer 公网 PoC](t004-bearer.md)已由用户在 8d3f7ec9e25208ad2b5219045e21bb3339ffa0ed 验收 PASS。
+本次只登记结果与准备待批设计差异，无需为文档更新重建服务；8000 所有者预览关闭研究暂缓，旧结论保留。
 最新结论：当前公网入口 Cookie 属性改写，T004-05/完整浏览器验收 BLOCKED。
 先阅读[平台兼容性与直连 A/B 对比](t004-platform-compatibility.md)，不要循环重写应用 Cookie 代码。
 以下安装/启动/全流程保留作历史步骤及今后平台入口正式变更后的复测说明。
 用户已确认既有服务 A/B 为 BLOCKED_CURRENT_PUBLIC_ENTRY / AFTER_LOOPBACK_VITE。
-既有[8000 外部隔离与 SQLite 工作空间重启](t004-remaining-acceptance.md)说明保留供查阅，当前按上方 Bearer 指令操作，
+既有[8000 外部隔离与 SQLite 工作空间重启](t004-remaining-acceptance.md)说明保留供查阅；Bearer 步骤仅供后续复测，
 不再重写 Cookie 检测或反复重装应用/浏览器；[官方支持说明](cloudstudio-support-issue.md)仅准备未发送。
 未收到逐项证据的其他项目仍待验证，T-004 未通过。
 T-001～T-003 已获用户验收，代码基线见 `docs/acceptance.md`。
