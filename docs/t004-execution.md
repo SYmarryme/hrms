@@ -1,6 +1,9 @@
 # T-004 CloudStudio 执行指令
 
-当前仅文件准备；**安装/启动/公网/重启测试全部 NOT_RUN**。Windows 不安装或运行项目。
+本页为 CloudStudio 操作说明；Windows 不安装或运行项目。
+更新：用户已回传 `b7237e7` 浏览器路径隔离 FAIL，本轮修复与重测仍 NOT_RUN；
+先按[Cookie 路径排查与重测说明](t004-cookie-path-investigation.md)重新安装、运行 7 项回归并重测。
+下述内容保留其他 T-004 操作步骤；未收到逐项证据的项目仍待验证，T-004 未通过。
 T-001～T-003 已获用户验收，代码基线见 `docs/acceptance.md`。
 本任务按正式 T-004 准备临时 Vue/TypeScript/Vite + FastAPI GET-only 健康夹具，
 不是 HRMS 应用骨架，不接入员工、工资、正式认证或生产数据库。
@@ -48,6 +51,10 @@ bash scripts/m00/start_t004.sh "$T004_ENV_DIR" "$T004_ORIGIN"
 源提交变化需重新 setup，避免混用旧前端副本与新后端。
 setup/start 均拒绝相关源目录的未提交变更，启动时还核对副本源文件的 Git 哈希；
 不能在改动代码后仍用旧提交号作为本次验证证据。
+
+Cookie 检查现要求每次独立 `probe_id`；页面和 HTTPS 探针会自动生成，手工请求不带合法 ID 返回 422。
+Path 与安全属性不变，不重写或清空用户已有 Cookie；旧固定名称只做脱敏诊断，不当成本次标记。
+前端拒绝重定向并核对最终 URL/后端实际路径，范围外出现本次名称即失败，不能用值不匹配掩盖越界。
 
 转发头策略：Uvicorn `--no-proxy-headers`；Vite 不信任客户端或未知平台的 Forwarded/
 X-Forwarded-*，清除后只写操作人配置的 HTTPS origin。因此健康输出的 `transport_scheme`

@@ -6,18 +6,22 @@ createApp({
     async function check() {
       try {
         if (location.protocol !== 'https:') throw new Error('必须从 CloudStudio HTTPS 公网入口打开');
+        const probeId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+        const cookieName = 'hrms_t004_probe_' + probeId;
+        const scoped = (path: string) => path + '?probe_id=' + probeId;
         const get = async (path: string) => {
-          const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store' });
-          if (!response.ok || new URL(response.url).origin !== location.origin) throw new Error('同源 API 失败');
+          const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+          if (!response.ok || response.redirected || response.url !== new URL(path, location.origin).href) throw new Error('同源 API 或最终请求路径不符，禁止重定向');
           return response.json();
         };
         const health = await get('/api/v1/poc/health');
-        await get('/api/v1/poc/cookie');
-        const inside = await get('/api/v1/poc/cookie-check');
-        const outside = await get('/api/v1/poc-outside/cookie-check');
+        await get(scoped('/api/v1/poc/cookie'));
+        const inside = await get(scoped('/api/v1/poc/cookie-check'));
+        const outside = await get(scoped('/api/v1/poc-outside/cookie-check'));
+        const pathsVerified = inside.observed_path === '/api/v1/poc/cookie-check' && outside.observed_path === '/api/v1/poc-outside/cookie-check';
         const frame = document.createElement('iframe');
         frame.hidden = true;
-        frame.src = '/api/v1/poc/browser-cookie';
+        frame.src = scoped('/api/v1/poc/browser-cookie');
         let hidden = false;
         try {
           await new Promise<void>((resolve, reject) => {
@@ -27,17 +31,21 @@ createApp({
             document.body.append(frame);
           });
           const context = frame.contentDocument;
-          if (!context || context.location.origin !== location.origin || !context.body.hasAttribute('data-t004-cookie-context') || context.body.dataset.cookieReceived !== 'true') {
+          if (!context || context.location.href !== new URL(frame.src, location.origin).href || !context.body.hasAttribute('data-t004-cookie-context') || context.body.dataset.cookieReceived !== 'true') {
             throw new Error('未加载收到诊断 Cookie 的同源路径文档');
           }
-          hidden = !context.cookie.split(';').some(value => value.trim().startsWith('hrms_t004_probe='));
+          hidden = !context.cookie.split(';').some(value => value.trim().startsWith(cookieName + '='));
         } finally {
           frame.remove();
         }
-        const passed = health.fixture === 'hrms-t004' && health.status === 'ok' && inside.received === true && outside.received === false && hidden;
+        const passed = health.fixture === 'hrms-t004' && health.status === 'ok' && pathsVerified && inside.received === true
+          && inside.cookie_name_count === 1 && outside.received === false && outside.cookie_name_present === false && outside.cookie_name_count === 0 && hidden;
         result.value = JSON.stringify({ browser_result: passed ? 'PASS' : 'FAIL', commit: health.commit,
           https: true, same_origin: true, cookie_received: inside.received,
-          cookie_outside_path: outside.received, cookie_hidden_from_js_inside_path: hidden }, null, 2);
+          cookie_outside_path: outside.cookie_name_present, cookie_hidden_from_js_inside_path: hidden,
+          request_paths_verified: pathsVerified, cookie_scope: 'unique-per-run',
+          cookie_inside_name_count: inside.cookie_name_count, cookie_outside_name_count: outside.cookie_name_count,
+          legacy_cookie_outside_path: outside.legacy_cookie_present }, null, 2);
       } catch (error) {
         result.value = 'FAIL: ' + (error instanceof Error ? error.message : 'request failed');
       }

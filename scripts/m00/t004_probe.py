@@ -6,6 +6,7 @@ import re
 import ssl
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -21,7 +22,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def probe(origin, expected_commit, local, outside_canary=None):
+def probe(origin, expected_commit, local, outside_canary=None, diagnostics=None):
     parsed = urlsplit(origin)
     assert not parsed.username and not parsed.password and not parsed.query and not parsed.fragment
     assert parsed.path in ('', '/')
@@ -31,6 +32,9 @@ def probe(origin, expected_commit, local, outside_canary=None):
         assert parsed.scheme == 'https' and parsed.hostname, 'Public probe requires a bare HTTPS origin'
         assert parsed.hostname not in ('localhost', '127.0.0.1', '::1')
     origin = origin.rstrip('/')
+    probe_id = uuid.uuid4().hex
+    cookie_name = 'hrms_t004_probe_' + probe_id
+    scoped = lambda path: path + '?probe_id=' + probe_id
     jar = http.cookiejar.CookieJar()
     client = build_opener(ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context()),
                           HTTPCookieProcessor(jar), NoRedirect())
@@ -43,6 +47,7 @@ def probe(origin, expected_commit, local, outside_canary=None):
     def get(path, headers=None):
         with client.open(Request(origin + path, headers=headers or {}), timeout=15) as response:
             assert response.status == 200
+            assert response.geturl() == origin + path, 'Unexpected final request URL'
             return json.loads(response.read(32768)), response.headers
 
     spoof = {'Forwarded': 'for=192.0.2.1;proto=http;host=invalid.example',
@@ -56,17 +61,31 @@ def probe(origin, expected_commit, local, outside_canary=None):
     else:
         check('proxy_replaces_untrusted_forwarding', health.get('forwarded_proto_https') is True and health.get('forwarded_host_matches') is True
               and health.get('forwarded_present') is False and health.get('forwarded_for_present') is False)
-        _, headers = get('/api/v1/poc/cookie')
+        _, headers = get(scoped('/api/v1/poc/cookie'))
         cookie = SimpleCookie()
         for value in headers.get_all('Set-Cookie', []):
             cookie.load(value)
-        marker = cookie.get('hrms_t004_probe')
+        marker = cookie.get(cookie_name)
         check('cookie_attributes', marker is not None and bool(marker['secure']) and bool(marker['httponly'])
               and marker['path'] == '/api/v1/poc/' and marker['samesite'].lower() == 'lax' and not marker['domain'])
-        inside, _ = get('/api/v1/poc/cookie-check')
-        outside, _ = get('/api/v1/poc-outside/cookie-check')
-        check('cookie_inside_path', inside.get('received') is True)
-        check('cookie_outside_path', outside.get('received') is False)
+        inside, _ = get(scoped('/api/v1/poc/cookie-check'))
+        outside, _ = get(scoped('/api/v1/poc-outside/cookie-check'))
+        if diagnostics is not None:
+            # Explicit scalar projection only: no IDs, cookie names/values or headers.
+            diagnostics.update({
+                'cookie_scope': 'unique-per-run',
+                'inside_name_count': inside.get('cookie_name_count'),
+                'outside_name_count': outside.get('cookie_name_count'),
+                'outside_current_name_present': outside.get('cookie_name_present'),
+                'outside_legacy_name_present': outside.get('legacy_cookie_present'),
+                'inside_path_matches': inside.get('observed_path') == '/api/v1/poc/cookie-check',
+                'outside_path_matches': outside.get('observed_path') == '/api/v1/poc-outside/cookie-check',
+            })
+        check('cookie_request_paths', inside.get('observed_path') == '/api/v1/poc/cookie-check'
+              and outside.get('observed_path') == '/api/v1/poc-outside/cookie-check')
+        check('cookie_inside_path', inside.get('received') is True and inside.get('cookie_name_count') == 1)
+        check('cookie_outside_path', outside.get('received') is False
+              and outside.get('cookie_name_present') is False and outside.get('cookie_name_count') == 0)
         if outside_canary:
             canary = Path(outside_canary)
             assert canary.is_absolute(), 'Canary must be the actual absolute CloudStudio path'
@@ -91,10 +110,11 @@ if __name__ == '__main__':
     folder = Path(tempfile.mkdtemp(prefix='t004-probe.', dir=ROOT / 'var/m00'))
     report = {'utc': datetime.now(timezone.utc).isoformat(), 'commit': args.commit,
               'scope': 'local' if args.local else 'public_https',
+              'cookie_observation': {},
               'browser': 'NOT_RUN', 'external_8000': 'NOT_RUN', 'workspace_restart': 'NOT_RUN'}
     try:
         assert re.fullmatch('[0-9a-f]{40}', args.commit), 'Invalid expected Git commit'
-        report['checks'] = probe(args.origin, args.commit, args.local, args.outside_canary)
+        report['checks'] = probe(args.origin, args.commit, args.local, args.outside_canary, report['cookie_observation'])
         report['filesystem_boundary'] = 'CHECKED' if args.outside_canary and not args.local else 'NOT_RUN'
         report['result'] = 'PASS'
         code = 0

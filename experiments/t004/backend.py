@@ -3,7 +3,7 @@ import os
 import re
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse
 
 origin = urlsplit(os.environ['T004_PUBLIC_ORIGIN'])
@@ -14,7 +14,27 @@ commit = os.environ['T004_COMMIT']
 if not re.fullmatch('[0-9a-f]{40}', commit):
     raise ValueError('Expected an actual Git commit')
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-COOKIE = 'hrms_t004_probe'
+LEGACY_COOKIE = 'hrms_t004_probe'
+COOKIE_PREFIX = LEGACY_COOKIE + '_'
+COOKIE_VALUE = 'poc-not-a-session'
+COOKIE_PATH = '/api/v1/poc/'
+
+
+def cookie_observation(request: Request, probe_id: str):
+    name = COOKIE_PREFIX + probe_id
+
+    def count(expected_name):
+        return sum(part.partition('=')[0].strip() == expected_name
+                   for header in request.headers.getlist('cookie') for part in header.split(';'))
+
+    occurrences = count(name)
+    return {
+        'fixture': 'hrms-t004', 'observed_path': request.url.path,
+        'received': occurrences == 1 and request.cookies.get(name) == COOKIE_VALUE,
+        'cookie_name_present': occurrences > 0, 'cookie_name_count': occurrences,
+        # Observation only; old cookies are never treated as the current probe.
+        'legacy_cookie_present': count(LEGACY_COOKIE) > 0,
+    }
 
 
 @app.middleware('http')
@@ -39,24 +59,24 @@ def health(request: Request):
 
 
 @app.get('/api/v1/poc/cookie')
-def cookie(response: Response):
+def cookie(response: Response, probe_id: str = Query(..., pattern=r'^[0-9a-f]{32}$')):
     # Public constant diagnostic marker. It cannot authenticate anyone.
-    response.set_cookie(COOKIE, 'poc-not-a-session', secure=True, httponly=True,
-                        samesite='lax', path='/api/v1/poc/', max_age=600)
-    return {'fixture': 'hrms-t004', 'cookie_set': True}
+    response.set_cookie(COOKIE_PREFIX + probe_id, COOKIE_VALUE, secure=True, httponly=True,
+                        samesite='lax', path=COOKIE_PATH, max_age=600)
+    return {'fixture': 'hrms-t004', 'cookie_set': True, 'declared_path': COOKIE_PATH, 'run_scoped': True}
 
 
 @app.get('/api/v1/poc/cookie-check')
 @app.get('/api/v1/poc-outside/cookie-check')
-def cookie_check(request: Request):
-    return {'fixture': 'hrms-t004', 'received': request.cookies.get(COOKIE) == 'poc-not-a-session'}
+def cookie_check(request: Request, probe_id: str = Query(..., pattern=r'^[0-9a-f]{32}$')):
+    return cookie_observation(request, probe_id)
 
 
 @app.get('/api/v1/poc/browser-cookie', response_class=HTMLResponse)
-def browser_cookie(request: Request):
+def browser_cookie(request: Request, probe_id: str = Query(..., pattern=r'^[0-9a-f]{32}$')):
     # A real document INSIDE the cookie Path: checking document.cookie at / would
     # hide this cookie because of Path alone and could falsely imply HttpOnly.
-    received = 'true' if request.cookies.get(COOKIE) == 'poc-not-a-session' else 'false'
+    received = 'true' if cookie_observation(request, probe_id)['received'] else 'false'
     return HTMLResponse('<!doctype html><html><head><title>T004 cookie context</title></head>'
                         f'<body data-t004-cookie-context data-cookie-received="{received}">'
                         'Synthetic cookie path context only.</body></html>')
