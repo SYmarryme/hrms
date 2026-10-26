@@ -53,7 +53,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await page.getByLabel('部门',{exact:true}).last().selectOption({label:'[虚构]Edge部门'});
   await page.getByLabel('职位',{exact:true}).selectOption({label:'[虚构]Edge岗位 · G2'});
   await page.getByLabel('入职日期',{exact:true}).fill('2026-01-01');
-  await page.getByRole('button',{name:'保存员工',exact:true}).click();await expect(page.getByRole('status')).toContainText('保存');
+  await page.getByRole('button',{name:'保存员工',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'员工档案已保存'})).toBeVisible();
   const employeeRow=page.getByRole('row').filter({hasText:'E2E-EMP'});
   await employeeRow.getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('姓名',{exact:true}).fill('[虚构]Edge员工改名');
   await page.getByRole('button',{name:'保存员工',exact:true}).click();await expect(employeeRow).toContainText('员工改名');

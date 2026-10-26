@@ -6,7 +6,7 @@ export interface Employee { id: string; employee_no: string; full_name: string; 
 export interface Leave { id: string; employee_id: string; department_id: string; start_date: string; end_date: string; leave_type: string; reason: string; status: string; opinion: string | null; decided_at: string | null; version_no: number }
 export interface Salary { id: string; employee_id: string; month: string; amount: string; version_no: number }
 export interface User { id: string; username: string; employee_id: string | null; roles: string[]; department_ids: string[]; status: string; version_no: number }
-export interface ImportResult { valid: boolean; errors: {row: number; code: string}[]; imported: number; count?: number }
+export interface ImportResult { valid: boolean; errors: {row: number; code: string; field?: string; message?: string}[]; imported: number; count?: number }
 export function courseApi<T>(path: CoursePath, method = 'GET', body?: unknown, etag?: string): Promise<T> {
   return courseRequest<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }, etag);
 }

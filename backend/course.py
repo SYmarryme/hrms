@@ -589,8 +589,8 @@ def make_router(bearer):
 
     @router.get('/employees/template')
     def employee_template(request:Request,format:Literal['csv','xlsx']='csv'):
-        from backend.course_files import encode_sheet, COLUMNS, media
-        content=run(request,'employee.template',lambda s,p,n:encode_sheet([COLUMNS],format),{'HR'})
+        from backend.course_files import template_employees, media
+        content=run(request,'employee.template',lambda s,p,n:template_employees(s,format),{'HR'})
         return Response(content,media_type=media(format),headers={'Content-Disposition':f'attachment; filename="employees-template.{format}"'})
     @router.post('/employees/import')
     async def employee_import(request:Request,format:Literal['csv','xlsx']='csv',mode:Literal['preflight','commit']='preflight'):

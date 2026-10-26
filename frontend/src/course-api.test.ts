@@ -29,3 +29,9 @@ it('reports a generic record conflict for non-department edits', async () => {
   vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response('{}',{status:412}));
   await expect(courseApi('/salaries','PUT',{amount:'1.00'})).rejects.toMatchObject({message:'记录已被其他操作修改，请重新读取详情后编辑'});
 });
+it('preserves row, field and actionable reasons from import preflight', async () => {
+  const issue={row:3,field:'所属职位',code:'POSITION_DEPARTMENT_MISMATCH',message:'所属职位不属于所选部门，请核对职位所属部门编号'};
+  vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({data:{valid:false,errors:[issue],imported:0}}),{status:200}));
+  const result=await importEmployees(new Blob(['csv']),'csv','preflight');
+  expect(result.valid).toBe(false);expect(result.errors).toEqual([issue]);expect(result.imported).toBe(0);
+});
