@@ -207,7 +207,11 @@ def test_migration_idempotence_fk_closure_and_wal(system):
         assert session.connection().exec_driver_sql('PRAGMA foreign_keys').scalar_one() == 1
         assert session.connection().exec_driver_sql('PRAGMA journal_mode').scalar_one() == 'wal'
         assert session.connection().exec_driver_sql('PRAGMA foreign_key_check').all() == []
-    assert len(metadata.tables) == 13
+    from backend.migrations.schema_v1 import build_metadata
+    assert len(build_metadata().tables) == 13  # Frozen enterprise identity baseline remains unchanged.
+    assert set(metadata.tables) - set(build_metadata().tables) == {
+        'course_manager_departments', 'course_attendance_rules', 'course_attendance',
+        'course_leaves', 'course_salaries', 'course_salary_history'}
     assert all(fk.column.table.name in metadata.tables for table in metadata.tables.values() for fk in table.foreign_keys)
 
 

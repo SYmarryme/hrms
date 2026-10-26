@@ -5,6 +5,7 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 from threading import BoundedSemaphore, Lock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerificationError, InvalidHashError
@@ -138,22 +139,23 @@ class AuthService:
 
     @staticmethod
     def effective_employment(session, employee_id, now):
+        today = utc(now).astimezone(ZoneInfo('Asia/Shanghai')).date()
         if employee_id is None:
             return False
         employees, departments, positions, assignments = (metadata.tables[name] for name in
             ('employees', 'departments', 'positions', 'employee_assignments'))
         employee = session.execute(select(employees).where(employees.c.id == employee_id)).mappings().first()
         if (not employee or employee['employment_status'] not in ('PROBATION', 'ACTIVE', 'EXIT_PROCESSING')
-                or employee['hire_date'] is None or employee['hire_date'] > now.date()
-                or (employee['termination_date'] is not None and employee['termination_date'] <= now.date())
+                or employee['hire_date'] is None or employee['hire_date'] > today
+                or (employee['termination_date'] is not None and employee['termination_date'] <= today)
                 or not employee['current_department_id'] or not employee['current_position_id']):
             return False
         position = session.execute(select(positions.c.id).join(departments, departments.c.id == positions.c.department_id).where(
             positions.c.id == employee['current_position_id'], positions.c.department_id == employee['current_department_id'],
             positions.c.status == 'ACTIVE', departments.c.status == 'ACTIVE')).first()
         current = session.execute(select(assignments).where(assignments.c.employee_id == employee_id,
-            assignments.c.valid_from <= now.date(),
-            (assignments.c.valid_to.is_(None) | (assignments.c.valid_to >= now.date())))).mappings().all()
+            assignments.c.valid_from <= today,
+            (assignments.c.valid_to.is_(None) | (assignments.c.valid_to >= today)))).mappings().all()
         return bool(position and len(current) == 1 and current[0]['department_id'] == employee['current_department_id']
                     and current[0]['position_id'] == employee['current_position_id'])
 

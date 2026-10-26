@@ -24,11 +24,12 @@ export class ApiError extends Error {
 export const hasSession = () => token !== null;
 export function setExpiredHandler(handler: () => void) { onExpired = handler; }
 
-type ApiPath = '/auth/login' | '/auth/me' | '/auth/logout' | `/departments${string}`;
-async function request(path: ApiPath, init: RequestInit = {}, etag?: string) {
+export type CoursePath = `/positions${string}` | `/employees${string}` | `/attendance${string}` | `/leaves${string}` | `/salaries${string}` | `/dashboard${string}` | `/users${string}`;
+type ApiPath = '/auth/login' | '/auth/me' | '/auth/logout' | `/departments${string}` | CoursePath;
+async function request(path: ApiPath, init: RequestInit = {}, etag?: string, binary = false) {
   const attached = path === '/auth/login' ? null : token;
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (init.body) headers['Content-Type'] = 'application/json';
+  if (init.body) headers['Content-Type'] = typeof init.body === 'string' ? 'application/json' : 'application/octet-stream';
   if (attached) headers.Authorization = 'Bearer ' + attached;
   if (etag) headers['If-Match'] = etag;
   let response: Response;
@@ -43,17 +44,25 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string) {
     if (response.status === 401 && attached && token === attached) { token = null; onExpired(); }
     // Only known constant user messages; never include response bodies/requests in errors.
     const message = response.status === 401 ? '账号或密码错误，或会话已失效' : response.status === 403 ? '当前请求没有访问权限' :
-      response.status === 429 ? '尝试过于频繁，请稍后重试' : response.status === 412 ? '部门已被其他操作修改，请重新读取详情后编辑' :
+      response.status === 429 ? '尝试过于频繁，请稍后重试' : response.status === 412 ? '记录已被其他操作修改，请重新读取详情后编辑' :
       response.status === 428 ? '缺少编辑版本，请先读取详情' : response.status === 409 ? '编号重复或存在层级、在职归属等业务冲突，请核对后重试' :
-      response.status === 422 ? '输入或查询参数不正确，请核对字段与长度' : response.status === 404 ? '部门不存在，请刷新列表' : '操作未完成，请稍后重试';
+      response.status === 422 ? '输入或查询参数不正确，请核对字段与长度' : response.status === 404 ? '记录不存在，请刷新列表' : '操作未完成，请稍后重试';
     const code = response.status === 401 ? 'AUTHENTICATION_REQUIRED' : response.status === 403 ? 'AUTHORIZATION_DENIED' :
       response.status === 429 ? 'RATE_LIMITED' : response.status === 412 ? 'VERSION_MISMATCH' : 'REQUEST_FAILED';
     throw new ApiError(response.status, code, message);
   }
+  if (binary) return { data: await response.blob(), etag: response.headers.get('ETag') };
   let payload: any;
   try { payload = await response.json(); }
   catch { throw new ApiError(response.status, 'INVALID_RESPONSE', '服务响应格式不正确'); }
   return { data: payload.data, etag: response.headers.get('ETag') };
+}
+
+export async function courseRequest<T>(path: CoursePath, init: RequestInit = {}, etag?: string): Promise<T> {
+  return (await request(path, init, etag)).data as T;
+}
+export async function employeeFile(path: `/employees/${'template' | 'export'}?${string}`): Promise<Blob> {
+  return (await request(path, {}, undefined, true)).data as Blob;
 }
 
 export async function login(username: string, password: string): Promise<void> {

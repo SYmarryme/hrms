@@ -1,35 +1,44 @@
-# HRMS
+# HRMS 课程 MVP v1.0
 
-当前交付正式 HRMS 登录、系统主页和部门管理，入口为 **backend/** 和 **frontend/**。
-CloudStudio 公网部署改为可选目标，M00/T-004 历史部署验收不再阻断核心功能开发。
-Windows 只编写/静态检查/提交推送；安装、迁移、启动和真实测试仍全部在 Ubuntu 完成。
+当前提供 Vue 3 + TypeScript + Vite 前端、FastAPI、SQLite/SQLAlchemy/Alembic 后端。
+课程范围包括部门、职位、员工及 CSV/XLSX 导入导出、考勤、请假、月薪、统计看板、账号管理与四角色授权。
+全部使用真实数据库和后端权限；没有公开注册、默认密码或 DEMO_MODE 绕过。
 
-本批代码：Argon2id、服务器随机不透明 Bearer、数据库仅存摘要、登录/当前用户/退出、
-受控首次管理员 CLI、固定30天/空闲24小时/最多5会话/5分钟last_seen节流，以及正式Vue登录页和保护主页。
-Token仅在JS私有内存，刷新/新标签重新登录；没有公开注册、JWT、refresh、Cookie回退或演示权限绕过。
-登录基线 ba59a4d 已由用户回传 Ubuntu 安装/迁移/初始化、测试退出0和 Edge 登录闭环通过。
-本批部门管理、增量迁移、扩展测试与页面验收均为 **NOT_RUN（等待用户Ubuntu执行）**。
-部门搜索分页、详情、新增、编辑、层级和启停见[部门操作说明](docs/departments.md)。
-部门写入需独立HR，ADMIN不自动拥有业务权限；严格员工绑定的首次HR前置阻断详见说明。
-代码准备/静态审查不能冒充运行通过；员工、考勤和薪酬业务尚未开发。
+本轮以用户提供的课程实施规格为准，不要求实现企业蓝图的54表/162接口/95任务。
+保留既有登录、部门、M00证据和私有文档；CloudStudio不再是前置条件。
+会话仍为不透明 Bearer，浏览器仅保存在模块私有内存；刷新和新标签页重新登录。
+绝对30天、空闲24小时、每账号最多5会话，密码重置/停用/退出由服务器撤销。
 
-完整最少命令与边界见[第一批登录操作说明](docs/core-login.md)。Ubuntu项目根目录：
+## Windows 最少命令（PowerShell，项目根目录）
 
-```bash
-git pull --ff-only origin main
-bash scripts/core/setup.sh
-var/core/venv/bin/python -m alembic -c backend/alembic.ini upgrade head
-read -r -p '首次管理员账号: ' HRMS_ADMIN_USERNAME
-var/core/venv/bin/python -m backend.cli init-admin --username "$HRMS_ADMIN_USERNAME"
-bash scripts/core/test.sh
-read -r -p '实际页面origin（公网HTTPS或Ubuntu本机http://127.0.0.1:3000）: ' HRMS_PUBLIC_ORIGIN
-export HRMS_PUBLIC_ORIGIN
-bash scripts/core/start.sh
+需要 Python 3.12、Node 22.12+（本轮实际使用 Python3.12.7 / Node24.18）和可选的已安装 Microsoft Edge。
+
+```powershell
+python scripts/local.py setup
+python scripts/local.py test
+# 先清除其他数据库配置；以下入口只接受命名隔离演示库
+Remove-Item Env:HRMS_DATABASE_PATH,Env:HRMS_PUBLIC_ORIGIN -ErrorAction SilentlyContinue
+python scripts/local.py demo --name class-one
+python scripts/local.py start --name class-one
 ```
 
-每步成功后再继续。初始密码仅CLI私密交互输入两次，无默认值；不要在命令、.env或Git中放密码/Token。
-默认正式数据var/hrms/app.sqlite3，与M00实验分离；不会自动清库或重置已有管理员。
-用户本轮明确的Bearer/会话约束作为实现依据；私密原文不改动，新整合候选不冒充已签收。
+创建时交互输入四个不同的12～128位密码；账号为 fixture-admin、fixture-hr、fixture-manager、fixture-employee。
+浏览器打开 **http://127.0.0.1:3000**。后端仅127.0.0.1:8000；前端本地入口也仅回环，所有API走相对路径同源代理。
+启动只读取 `var/course-demo/class-one/app.sqlite3` 及其完成标记；原 `var/hrms/app.sqlite3` 和 CloudStudio 库不参与本地初始化。
+同名目录存在即拒绝重建，包括失败的半成品；使用另一个名称重试，不会清空或覆盖。
+Ctrl+C停止后可重新运行同一 `start` 命令验证持久化。
+切回旧运行方式时停止本地演示，恢复原终端配置和原入口；**不要将演示文件复制到原库，也不要将原库交给 demo 命令**。
+
+完整操作和实际测试结果见[课程运行与验收说明](docs/course-mvp.md)。
+真实 Edge 自动端到端测试（每次新建独立虚构库，先停止手工演示以释放端口）：
+
+```powershell
+var/mvp/venv/Scripts/python.exe scripts/e2e_local.py
+```
+
+原企业版操作说明保留为历史资料，不应将其首次HR建制阻断流程用于课程虚构库。
+课程数据库增量版本 `course_0003`：保留13张既有表，增加6张课程表，不重写原身份或审计数据。
+本地脚本不会自动迁移旧业务库。所有运行文件、测试库、日志及下载文件都留在 Git 忽略目录。
 
 以下为 **M00历史记录**；保留真实PASS/FAIL/BLOCKED，不再作为本批功能开发的前置条件。
 

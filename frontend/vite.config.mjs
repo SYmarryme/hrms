@@ -11,7 +11,7 @@ if (origin.username || origin.password || origin.search || origin.hash || origin
 export default defineConfig({
   root, envDir: false, envPrefix: [], publicDir: false, plugins: [vue()],
   server: {
-    host: '0.0.0.0', port: 3000, strictPort: true, allowedHosts: [origin.hostname], cors: false,
+    host: process.env.HRMS_LOCAL_ONLY === '1' ? '127.0.0.1' : '0.0.0.0', port: 3000, strictPort: true, allowedHosts: [origin.hostname], cors: false,
     fs: { strict: true, allow: [root], deny: ['.env', '.env.*', '*.{pem,key,p12,pfx}', '**/.git/**'] },
     proxy: { '/api/': { target: 'http://127.0.0.1:8000', changeOrigin: true, xfwd: false, ws: false,
       configure(proxy) {

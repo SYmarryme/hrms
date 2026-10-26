@@ -15,6 +15,7 @@ from backend.auth import AuthError, AuthService
 from backend.database import Database
 from backend.departments import DepartmentService, make_router
 from backend.settings import Settings
+from backend.course import CourseService, make_router as make_course_router
 
 
 class LoginInput(BaseModel):
@@ -29,7 +30,7 @@ class LoginBodyLimit:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if (scope['type'] != 'http' or scope.get('method') not in ('POST', 'PATCH')
+        if (scope['type'] != 'http' or scope.get('method') not in ('POST', 'PATCH', 'PUT')
                 or not scope.get('path', '').startswith('/api/v1/')):
             return await self.app(scope, receive, send)
         body = bytearray()
@@ -38,7 +39,8 @@ class LoginBodyLimit:
             if message['type'] == 'http.disconnect':
                 return
             body.extend(message.get('body', b''))
-            if len(body) > 4096:
+            limit = 2 * 1024 * 1024 if scope.get('path') == '/api/v1/employees/import' else 4096
+            if len(body) > limit:
                 response = JSONResponse({'error': {'code': 'INVALID_REQUEST', 'message': '请求过大'}, 'request_id': str(uuid4())},
                                         status_code=413, headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
                 return await response(scope, receive, send)
@@ -77,6 +79,7 @@ def create_app(settings=None, clock=None):
     app.state.auth = auth
     app.state.database = database
     app.state.departments = DepartmentService(database, auth)
+    app.state.course = CourseService(database, auth)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=[urlsplit(settings.public_origin).hostname, '127.0.0.1', 'localhost'])
 
     def failure(request, status, code, message):
@@ -135,7 +138,7 @@ def create_app(settings=None, clock=None):
     @app.get('/api/v1/health')
     def health():
         database.check_revision()
-        return {'status': 'ok', 'application': 'hrms', 'schema': 'departments_0002'}
+        return {'status': 'ok', 'application': 'hrms', 'schema': 'course_0003'}
 
     @app.post('/api/v1/auth/login')
     def login(payload: LoginInput, request: Request):
@@ -154,5 +157,6 @@ def create_app(settings=None, clock=None):
         return Response(status_code=204)
 
     app.include_router(make_router(bearer))
+    app.include_router(make_course_router(bearer))
     app.add_middleware(LoginBodyLimit)
     return app

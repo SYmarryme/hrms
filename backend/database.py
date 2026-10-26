@@ -37,7 +37,7 @@ class Database:
     def check_revision(self):
         from backend.models import metadata
         with self.transaction() as session:
-            if session.execute(text('SELECT version_num FROM alembic_version')).scalar_one() != 'departments_0002':
+            if session.execute(text('SELECT version_num FROM alembic_version')).scalar_one() != 'course_0003':
                 raise RuntimeError('Run the reviewed Alembic upgrade before starting HRMS')
             tables = set(session.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).scalars())
             if not set(metadata.tables).issubset(tables):

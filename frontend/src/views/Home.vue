@@ -37,7 +37,9 @@ onMounted(load);
             <dt>会话固定到期时间（UTC）</dt><dd>{{ profile.session.expires_at }}</dd></dl></section>
         <section class="card"><h2>组织管理</h2><p>查询部门、查看层级与人数，由授权HR维护部门基础信息。</p>
           <router-link class="primary-link" to="/departments">进入部门管理</router-link>
-          <p class="muted">员工、考勤及薪酬模块尚未开发。</p></section>
+          <div class="form-actions"><router-link class="primary-link" to="/positions">职位管理</router-link><router-link v-if="profile.roles.some(r=>['HR','MANAGER','EMPLOYEE'].includes(r))" class="primary-link" to="/employees">员工档案</router-link></div></section>
+        <section v-if="profile.roles.some(r=>['HR','MANAGER','EMPLOYEE'].includes(r))" class="card"><h2>员工业务</h2><p>打卡、请假、本人薪资及授权范围的数据统计。</p><div class="module-links"><router-link to="/attendance">考勤管理</router-link><router-link to="/leaves">请假与审批</router-link><router-link to="/salaries">月度薪资</router-link><router-link to="/dashboard">数据看板</router-link></div></section>
+        <section v-if="profile.roles.includes('ADMIN')" class="card"><h2>系统管理</h2><p>创建账号、绑定员工、角色授权、停用和密码重置。</p><router-link class="primary-link" to="/users">用户管理</router-link></section>
       </template>
     </main>
   </div>

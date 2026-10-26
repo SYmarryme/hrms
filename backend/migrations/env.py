@@ -4,6 +4,7 @@ from sqlalchemy import inspect
 from backend.database import Database
 from backend.models import metadata
 from backend.settings import Settings
+from backend.migrations.schema_v1 import build_metadata
 
 settings = context.config.attributes.get('settings') or Settings.from_env()
 database = Database(settings.database_path)
@@ -13,9 +14,10 @@ with database.engine.connect() as connection:
         raise RuntimeError('Existing unversioned database; refusing to adopt or overwrite it')
     if 'alembic_version' in tables:
         versions = connection.exec_driver_sql('SELECT version_num FROM alembic_version').scalars().all()
-        if versions not in ([], ['identity_0001'], ['departments_0002']) or (not versions and len(tables) > 1):
+        if versions not in ([], ['identity_0001'], ['departments_0002'], ['course_0003']) or (not versions and len(tables) > 1):
             raise RuntimeError('Foreign or partial migration baseline; refusing to adopt it')
-        if versions and not set(metadata.tables).issubset(tables):
+        required = metadata if versions == ['course_0003'] else build_metadata()
+        if versions and not set(required.tables).issubset(tables):
             raise RuntimeError('Versioned database is missing required tables; refusing to repair it implicitly')
     connection.rollback()
     if connection.exec_driver_sql('PRAGMA journal_mode=WAL').scalar_one() != 'wal':
