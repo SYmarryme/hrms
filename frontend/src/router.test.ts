@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi,beforeEach } from 'vitest';
 import { createMemoryHistory } from 'vue-router';
-import { hasSession } from './api';
+import { hasSession,me } from './api';
+import { resetWorkspace } from './workspace';
 import { makeRouter } from './router';
 
-vi.mock('./api', async original => ({ ...(await original<typeof import('./api')>()), hasSession: vi.fn(), setExpiredHandler: vi.fn() }));
+vi.mock('./api', async original => ({ ...(await original<typeof import('./api')>()), hasSession: vi.fn(), me:vi.fn(),setExpiredHandler: vi.fn() }));
 
 describe('protected route navigation', () => {
+  beforeEach(()=>{resetWorkspace();vi.mocked(me).mockResolvedValue({id:'fixture',username:'fixture',employee_id:null,status:'ACTIVE',roles:['ADMIN'],session:{id:'s',created_at:'',expires_at:''}});});
   it('redirects a refreshed/new tab without private state to login', async () => {
     vi.mocked(hasSession).mockReturnValue(false);
     const router = makeRouter(createMemoryHistory());

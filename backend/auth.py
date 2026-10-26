@@ -185,9 +185,16 @@ class AuthService:
                 'employee_id': user['employee_id'], 'roles': sorted(set(current_roles)),
                 'session': {'id': row['id'], 'created_at': stamp(row['created_at']), 'expires_at': stamp(row['expires_at'])}}
 
-    def me(self, raw):
+    def me(self, raw, touch=True):
         with self.database.transaction(write=True) as session:
-            principal = self.resolve(session, raw, self.now())
+            now = self.now()
+            principal = self.resolve(session, raw, now, touch=touch)
+            if principal:
+                employee = session.execute(select(metadata.tables['employees']).where(
+                    metadata.tables['employees'].c.id == principal['employee_id'])).mappings().first()
+                principal.update(employee_name=employee['full_name'] if employee else None,
+                    employee_no=employee['employee_no'] if employee else None,
+                    employment_valid=self.effective_employment(session,principal['employee_id'],now))
         if principal is None:
             raise AuthError()
         return principal

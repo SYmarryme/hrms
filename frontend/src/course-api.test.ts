@@ -35,3 +35,17 @@ it('preserves row, field and actionable reasons from import preflight', async ()
   const result=await importEmployees(new Blob(['csv']),'csv','preflight');
   expect(result.valid).toBe(false);expect(result.errors).toEqual([issue]);expect(result.imported).toBe(0);
 });
+
+it('exports the complete current query including department and status',async()=>{
+ const fetcher=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response('file',{status:200}));
+ await downloadEmployees('xlsx',false,'虚构员工','department-id','ACTIVE');
+ expect(fetcher.mock.lastCall?.[0]).toBe('/api/v1/employees/export?format=xlsx&q='+encodeURIComponent('虚构员工')+'&department_id=department-id&status=ACTIVE');
+});
+it('explains duplicate leave errors without exposing internal codes',async()=>{
+ vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({error:{code:'INTERNAL_CONFLICT',message:'与待审或已批准的工作日请假重叠'}}),{status:409}));
+ await expect(courseApi('/leaves','POST',{})).rejects.toMatchObject({message:'所选日期与待审批或已批准的请假重叠，请调整日期。'});
+});
+it('does not reflect unknown server messages or internal codes to users',async()=>{
+ vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({error:{code:'PRIVATE_DEBUG',message:'POSITION_DEPARTMENT_MISMATCH'}}),{status:409}));
+ await expect(courseApi('/positions','POST',{})).rejects.toMatchObject({message:'编号重复或存在层级、在职归属等业务冲突，请核对后重试'});
+});

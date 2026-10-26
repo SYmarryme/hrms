@@ -299,11 +299,13 @@ def import_employees(service, session, now, content, kind, mode):
     return {'valid':True, 'errors':[], 'count':len(prepared), 'imported':len(prepared) if mode == 'commit' else 0}
 
 
-def export_employees(service, session, principal, q, kind):
+def export_employees(service, session, principal, q, kind, department_id=None, status=None):
     table = T['employees']; cond = [service.employee_scope(session, principal)]
     if q:
         from sqlalchemy import or_
         cond.append(or_(table.c.full_name.contains(q, autoescape=True), table.c.employee_no.contains(q, autoescape=True)))
+    if department_id:cond.append(table.c.current_department_id==department_id)
+    if status:cond.append(table.c.employment_status==status)
     rows = session.execute(select(table).where(*cond).order_by(table.c.employee_no)).mappings()
     data = [COLUMNS]
     for row in rows:

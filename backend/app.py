@@ -149,7 +149,7 @@ def create_app(settings=None, clock=None):
     @app.get('/api/v1/auth/me')
     def me(request: Request):
         # Identity is always selected from the server session, never a client employee/user ID.
-        return {'data': auth.me(bearer(request))}
+        return {'data': auth.me(bearer(request),touch=request.headers.get('X-HRMS-Session-Probe')!='1')}
 
     @app.post('/api/v1/auth/logout', status_code=204)
     def logout(request: Request):

@@ -1,4 +1,5 @@
 import { computed, reactive, ref } from 'vue';
+import { markDirty } from './workspace';
 import { ApiError, createDepartment, getDepartment, listDepartments, me, updateDepartment,
   type Department, type DepartmentRecord, type DepartmentInput, type Profile } from './api';
 
@@ -7,7 +8,7 @@ const safeError = (error: unknown) => error instanceof ApiError ? error.message 
 
 export function useDepartmentPage() {
   const profile = ref<Profile | null>(null);
-  const canManage = computed(() => !!profile.value?.roles.includes('HR') && !!profile.value.employee_id);
+  const canManage = computed(() => !!profile.value?.roles.includes('HR') && !!profile.value.employee_id && profile.value.employment_valid!==false);
   const state = reactive({ items: [] as Department[], q: '', page: 1, pageSize: 20, total: 0,
     loading: false, busy: false, error: '', notice: '', mode: null as 'new' | 'edit' | 'detail' | null,
     detail: null as DepartmentRecord | null, summary: null as Department | null, etag: '', form: emptyForm(),
@@ -65,10 +66,19 @@ export function useDepartmentPage() {
     try {
       if (state.mode === 'new') { await createDepartment(input); state.notice = '部门新增成功'; }
       else { await updateDepartment(state.detail!.id, input, state.etag); state.notice = '部门更新成功'; }
-      state.mode = null; state.detail = null; state.summary = null; await load();
+      markDirty('/departments',false);state.mode = null; state.detail = null; state.summary = null; await load();
     } catch (error) { state.error = safeError(error); }
     finally { state.busy = false; }
   }
   function close() { if (!state.busy) { state.mode = null; state.detail = null; state.summary = null; } }
-  return { state, canManage, initialize, load, search, go, parents, beginCreate, open, save, close };
+  async function toggle(item:Department){
+    if(!canManage.value||state.busy)return;
+    const status=item.status==='ACTIVE'?'DISABLED':'ACTIVE';
+    if(!window.confirm(`确认${status==='DISABLED'?'停用':'恢复'}部门“${item.name}”？`))return;
+    state.busy=true;state.error='';state.notice='';
+    try{const latest=await getDepartment(item.id);await updateDepartment(item.id,{code:latest.item.code,name:latest.item.name,parent_id:latest.item.parent_id,status},latest.etag);
+      state.notice=status==='DISABLED'?'部门已停用':'部门已恢复';await load();
+    }catch(error){state.error=safeError(error);}finally{state.busy=false;}
+  }
+  return { state, canManage, initialize, load, search, go, parents, beginCreate, open, save, close, toggle };
 }

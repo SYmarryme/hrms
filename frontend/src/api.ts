@@ -5,6 +5,7 @@ let onExpired: () => void = () => {};
 export interface Profile {
   id: string; username: string; status: string; employee_id: string | null; roles: string[];
   session: { id: string; created_at: string; expires_at: string };
+  employee_name?: string | null; employee_no?: string | null; employment_valid?: boolean;
 }
 export interface DepartmentRecord {
   id: string; code: string; name: string; parent_id: string | null; status: 'ACTIVE' | 'DISABLED'; version_no: number;
@@ -23,15 +24,17 @@ export class ApiError extends Error {
 }
 export const hasSession = () => token !== null;
 export function setExpiredHandler(handler: () => void) { onExpired = handler; }
+export function discardSession(){ token=null;onExpired(); }
 
 export type CoursePath = `/positions${string}` | `/employees${string}` | `/attendance${string}` | `/leaves${string}` | `/salaries${string}` | `/dashboard${string}` | `/users${string}`;
 type ApiPath = '/auth/login' | '/auth/me' | '/auth/logout' | `/departments${string}` | CoursePath;
-async function request(path: ApiPath, init: RequestInit = {}, etag?: string, binary = false) {
+async function request(path: ApiPath, init: RequestInit = {}, etag?: string, binary = false, probe = false) {
   const attached = path === '/auth/login' ? null : token;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (init.body) headers['Content-Type'] = typeof init.body === 'string' ? 'application/json' : 'application/octet-stream';
   if (attached) headers.Authorization = 'Bearer ' + attached;
   if (etag) headers['If-Match'] = etag;
+  if(probe&&path==='/auth/me')headers['X-HRMS-Session-Probe']='1';
   let response: Response;
   try {
     response = await fetch('/api/v1' + path, { ...init, headers, credentials: 'omit', cache: 'no-store',
@@ -39,14 +42,20 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string, bin
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', '服务暂不可用，请检查连接后重试');
   }
+  if(attached && token!==attached)throw new ApiError(401,'AUTHENTICATION_REQUIRED','会话已变化，请重新登录');
   if (response.status === 204) return { data: undefined, etag: null };
   if (!response.ok) {
     if (response.status === 401 && attached && token === attached) { token = null; onExpired(); }
     // Only known constant user messages; never include response bodies/requests in errors.
-    const message = response.status === 401 ? '账号或密码错误，或会话已失效' : response.status === 403 ? '当前请求没有访问权限' :
+    let message = response.status === 401 ? '账号或密码错误，或会话已失效' : response.status === 403 ? '当前请求没有访问权限' :
       response.status === 429 ? '尝试过于频繁，请稍后重试' : response.status === 412 ? '记录已被其他操作修改，请重新读取详情后编辑' :
       response.status === 428 ? '缺少编辑版本，请先读取详情' : response.status === 409 ? '编号重复或存在层级、在职归属等业务冲突，请核对后重试' :
       response.status === 422 ? '输入或查询参数不正确，请核对字段与长度' : response.status === 404 ? '记录不存在，请刷新列表' : '操作未完成，请稍后重试';
+    // Only explicitly approved messages; arbitrary gateway/server text is never reflected.
+    try{const payload:unknown=await response.json();if(payload&&typeof payload==='object'&&'error' in payload){const error=payload.error;
+      if(error&&typeof error==='object'&&'message' in error&&typeof error.message==='string'){
+        const { businessError }=await import('./error-messages');message=businessError(error.message)||message;
+      }}}catch{/* Keep the safe status fallback for non-JSON gateways. */}
     const code = response.status === 401 ? 'AUTHENTICATION_REQUIRED' : response.status === 403 ? 'AUTHORIZATION_DENIED' :
       response.status === 429 ? 'RATE_LIMITED' : response.status === 412 ? 'VERSION_MISMATCH' : 'REQUEST_FAILED';
     throw new ApiError(response.status, code, message);
@@ -73,10 +82,10 @@ export async function login(username: string, password: string): Promise<void> {
   }
   token = data.access_token;
 }
-export async function me(): Promise<Profile> { return (await request('/auth/me')).data; }
+export async function me(probe=false): Promise<Profile> { return (await request('/auth/me',{},undefined,false,probe)).data; }
 export async function logout(): Promise<void> {
   try { await request('/auth/logout', { method: 'POST' }); }
-  finally { token = null; onExpired(); }
+  finally { discardSession(); }
 }
 
 export async function listDepartments(q = '', page = 1, pageSize = 20): Promise<DepartmentPage> {

@@ -43,7 +43,7 @@ def main():
                         if response.status==200:break
                 except OSError:time.sleep(.2)
             else:raise RuntimeError('E2E server not ready')
-            result=subprocess.run(['node',str(ROOT/'frontend/node_modules/@playwright/test/cli.js'),'test','--config',str(ROOT/'frontend/playwright.config.ts')],
+            result=subprocess.run(['node',str(ROOT/'frontend/node_modules/@playwright/test/cli.js'),'test','--config',str(ROOT/'frontend/playwright.config.ts'),*sys.argv[1:]],
                 cwd=ROOT/'frontend',env={**env,'HRMS_E2E_PASSWORDS':json.dumps(passwords)})
             return result.returncode
         finally:

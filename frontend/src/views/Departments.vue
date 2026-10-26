@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { useFeedback } from '../feedback';
+import { formatBeijing } from '../presentation';
+import { onMounted,toRef } from 'vue';
 import { useDepartmentPage } from '../department-page';
 
 const page = useDepartmentPage();
 const { state, canManage } = page;
+useFeedback(toRef(state,'notice'),toRef(state,'error'),'/departments');
 onMounted(page.initialize);
 </script>
 
 <template>
-  <div class="workspace">
-    <header><span class="brand">HRMS</span><span class="muted">部门管理</span><router-link class="back-link" to="/">返回系统主页</router-link></header>
+  <div class="business-page">
     <main>
       <div class="section-heading"><div><p class="eyebrow">组织基础资料</p><h1>部门管理</h1><p class="muted">查询部门及层级；由授权 HR 维护基础信息和启停状态。</p></div>
         <button v-if="canManage" :disabled="state.busy" @click="page.beginCreate">新增部门</button></div>
@@ -30,7 +32,7 @@ onMounted(page.initialize);
               <td><span :class="['status-badge', item.status === 'ACTIVE' ? 'active' : 'disabled']">{{ item.status === 'ACTIVE' ? '启用' : '停用' }}</span></td>
               <td>{{ item.direct_employee_count }} / {{ item.subtree_employee_count }}</td><td class="table-actions">
                 <button class="text-button" :disabled="state.busy" @click="page.open(item.id)">详情</button>
-                <button v-if="canManage" class="text-button" :disabled="state.busy" @click="page.open(item.id, true)">编辑</button></td></tr></tbody></table>
+                <button v-if="canManage" class="text-button" :disabled="state.busy" @click="page.open(item.id, true)">编辑</button><button v-if="canManage" class="text-button" :disabled="state.busy||state.mode==='edit'||state.mode==='new'" @click="page.toggle(item)">{{item.status==='ACTIVE'?'停用':'恢复'}}</button></td></tr></tbody></table>
         </div>
         <nav class="pagination" aria-label="部门分页"><span>共 {{ state.total }} 条 · 第 {{ state.page }} 页</span>
           <button class="secondary" :disabled="state.loading || state.page <= 1" @click="page.go(state.page - 1)">上一页</button>
@@ -38,12 +40,12 @@ onMounted(page.initialize);
       </section>
 
       <section v-if="state.mode" class="card department-editor" aria-labelledby="department-editor-title">
-        <div class="section-heading"><h2 id="department-editor-title">{{ state.mode === 'new' ? '新增部门' : state.mode === 'edit' ? '编辑部门' : '部门详情' }}</h2><button class="secondary" :disabled="state.busy" @click="page.close">关闭</button></div>
+        <div class="section-heading"><h2 id="department-editor-title">{{ state.mode === 'new' ? '新增部门' : state.mode === 'edit' ? '编辑部门' : '部门详情' }}</h2><button class="secondary" data-clear-dirty :disabled="state.busy" @click="page.close">关闭</button></div>
         <template v-if="state.mode === 'detail' && state.detail">
           <dl><dt>部门编号</dt><dd>{{ state.detail.code }}</dd><dt>名称</dt><dd>{{ state.detail.name }}</dd>
             <dt>上级部门（列表快照）</dt><dd>{{ state.summary?.parent_name || (state.detail.parent_id ? '请刷新列表查看名称' : '根部门') }}</dd><dt>状态</dt><dd>{{ state.detail.status === 'ACTIVE' ? '启用' : '停用' }}</dd>
             <dt>直属在职人数（列表快照）</dt><dd>{{ state.summary?.direct_employee_count ?? '—' }}</dd><dt>子树在职人数（列表快照）</dt><dd>{{ state.summary?.subtree_employee_count ?? '—' }}</dd>
-            <dt>版本</dt><dd>{{ state.detail.version_no }}</dd><dt>更新时间（UTC）</dt><dd>{{ state.detail.updated_at }}</dd></dl>
+            <dt>版本</dt><dd>{{ state.detail.version_no }}</dd><dt>更新时间（北京时间）</dt><dd>{{ formatBeijing(state.detail.updated_at) }}</dd></dl>
           <button v-if="canManage" @click="page.open(state.detail.id, true)">编辑此部门</button>
         </template>
         <form v-else @submit.prevent="page.save">

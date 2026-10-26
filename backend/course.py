@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator, SecretStr
 from sqlalchemy import select, insert, update, delete, func, or_, and_
 
-from backend.auth import AuthError, audit, utc
+from backend.auth import AuthError, audit, utc, stamp
 from backend.models import metadata, users, roles, role_assignments, auth_sessions
 
 T = metadata.tables
@@ -175,6 +175,17 @@ def month_dates(month):
 class CourseService:
     def __init__(self, database, auth):
         self.db, self.auth = database, auth
+
+    @staticmethod
+    def human_employees(session, rows):
+        """Enrich only ALREADY authorized result rows; never widen object scope."""
+        ids={row['employee_id'] for row in rows}
+        table=T['employees']
+        labels={row.id:(row.full_name,row.employee_no) for row in session.execute(
+            select(table.c.id,table.c.full_name,table.c.employee_no).where(table.c.id.in_(ids)))}
+        for row in rows:
+            row['employee_name'],row['employee_no']=labels.get(row['employee_id'],(None,None))
+        return rows
 
     def run(self, raw, request_id, action, operation, allowed=None, write=False):
         principal, denied = None, None
@@ -369,7 +380,8 @@ class CourseService:
             if row: reject(message='当日已上班打卡')
             item_id = str(uuid4()); session.execute(insert(table).values(id=item_id, employee_id=eid, work_date=day, clock_in_at=now, created_at=now, updated_at=now, version_no=1))
             return row_by(session, table, item_id)
-        if not row or row['clock_out_at'] is not None: reject(message='未上班打卡或已下班打卡')
+        if not row: reject(message='尚未完成上班打卡，请先上班打卡')
+        if row['clock_out_at'] is not None: reject(message='当日已下班打卡')
         if now < utc(row['clock_in_at']): reject(message='服务器时间异常，无法完成打卡')
         return changed(session, table, dict(row), {'clock_out_at': now}, now)
 
@@ -403,7 +415,7 @@ class CourseService:
             ended = day < today or now.astimezone(SHANGHAI).time().replace(tzinfo=None) >= time.fromisoformat(rule['end_time'])
             if ended and (day not in by_day or by_day[day]['clock_out_at'] is None): missing += 1
         denominator = len(expected)
-        return {'employee_id':eid, 'month':month, 'items':records, 'summary':{'planned_days':len(planned), 'leave_days':len(leave_days & planned),
+        return {'employee_id':eid, 'month':month, 'today':today, 'items':records, 'summary':{'planned_days':len(planned), 'leave_days':len(leave_days & planned),
             'expected_days':denominator, 'complete_days':len(complete), 'late_days':late, 'early_days':early, 'missing_days':missing,
             'attendance_rate':str((Decimal(len(complete))*100/Decimal(denominator)).quantize(Decimal('0.01'))) if denominator else None}}
 
@@ -417,6 +429,10 @@ class CourseService:
             conditions = [table.c.department_id.in_(deps), table.c.employee_id.in_(current), table.c.employee_id != principal['employee_id']]
         total = session.execute(select(func.count()).select_from(table).where(*conditions)).scalar_one()
         rows = [dict(r) for r in session.execute(select(table).where(*conditions).order_by(table.c.created_at.desc(),table.c.id).offset((page-1)*page_size).limit(page_size)).mappings()]
+        self.human_employees(session,rows)
+        actor_ids={row['decided_by'] for row in rows if row['decided_by']}
+        actors=dict(session.execute(select(users.c.id,users.c.username).where(users.c.id.in_(actor_ids))).all())
+        for row in rows:row['decided_by_username']=actors.get(row['decided_by'])
         return {'items':rows,'total':total,'page':page,'page_size':page_size}
 
     def leave_create(self, session, principal, now, data):
@@ -454,6 +470,7 @@ class CourseService:
         if month: month_dates(month); cond.append(table.c.month==month)
         total=session.execute(select(func.count()).select_from(table).where(*cond)).scalar_one()
         rows=[dict(r) for r in session.execute(select(table).where(*cond).order_by(table.c.month.desc(),table.c.employee_id).offset((page-1)*page_size).limit(page_size)).mappings()]
+        self.human_employees(session,rows)
         for row in rows: row['amount']=f'{Decimal(row.pop("amount_cents"))/100:.2f}'
         return {'items':rows,'total':total,'page':page,'page_size':page_size}
 
@@ -559,7 +576,7 @@ def make_router(bearer):
     def run(request,action,operation,allowed=None,write=False):
         return request.app.state.course.run(bearer(request),request.state.request_id,action,operation,allowed,write)
     def reply(data,status=200):
-        return JSONResponse({'data':jsonable_encoder(data)},status_code=status,
+        return JSONResponse({'data':jsonable_encoder(data,custom_encoder={datetime:stamp})},status_code=status,
             headers={'ETag':f'"v{data["version_no"]}"'} if isinstance(data,dict) and 'version_no' in data else {})
     def match(request):
         matches=request.headers.getlist('if-match'); return matches[0] if len(matches)==1 else None
@@ -598,9 +615,11 @@ def make_router(bearer):
         content=await request.body()
         return reply(run(request,'employee.import.'+mode,lambda s,p,n:import_employees(service(request),s,n,content,format,mode),{'HR'},True))
     @router.get('/employees/export')
-    def employee_export(request:Request,format:Literal['csv','xlsx']='csv',q:str=Query('',max_length=128)):
+    def employee_export(request:Request,format:Literal['csv','xlsx']='csv',q:str=Query('',max_length=128),department_id:UUID|None=None,
+                        status:Literal['PRE_HIRE','PROBATION','ACTIVE','EXIT_PROCESSING','TERMINATED']|None=None):
         from backend.course_files import export_employees,media
-        content=run(request,'employee.export',lambda s,p,n:export_employees(service(request),s,p,q,format),{'HR','MANAGER','EMPLOYEE'},True)
+        content=run(request,'employee.export',lambda s,p,n:export_employees(service(request),s,p,q,format,
+            str(department_id) if department_id else None,status),{'HR','MANAGER','EMPLOYEE'},True)
         return Response(content,media_type=media(format),headers={'Content-Disposition':f'attachment; filename="employees.{format}"'})
     @router.get('/employees/{item_id}')
     def employee_detail(item_id:UUID,request:Request):
@@ -654,7 +673,9 @@ def make_router(bearer):
     def salary_history(item_id:UUID,request:Request):
         def history(s,p,n):
             row_by(s,T['course_salaries'],str(item_id))
-            rows=[dict(r) for r in s.execute(select(T['course_salary_history']).where(T['course_salary_history'].c.salary_id==str(item_id)).order_by(T['course_salary_history'].c.version_no)).mappings()]
+            history=T['course_salary_history']
+            rows=[dict(r) for r in s.execute(select(history,users.c.username.label('actor_username')).outerjoin(users,users.c.id==history.c.actor_user_id)
+                .where(history.c.salary_id==str(item_id)).order_by(history.c.version_no)).mappings()]
             for row in rows:row['amount']=f'{Decimal(row.pop("amount_cents"))/100:.2f}'
             return {'items':rows}
         return reply(run(request,'salary.history',history,{'HR'}))
@@ -668,8 +689,9 @@ def make_router(bearer):
     def audit_list(request:Request,page:int=Query(1,ge=1,le=2147483647),page_size:int=Query(20,ge=1,le=100)):
         def listing(s,p,n):
             a=T['audit_events']
-            fields=[a.c.id,a.c.occurred_at,a.c.actor_user_id,a.c.action_code,a.c.resource_type,a.c.resource_id,a.c.outcome,a.c.request_id]
-            rows=[dict(r) for r in s.execute(select(*fields).order_by(a.c.occurred_at.desc(),a.c.id).offset((page-1)*page_size).limit(page_size)).mappings()]
+            fields=[a.c.id,a.c.occurred_at,a.c.actor_user_id,users.c.username.label('actor_username'),a.c.action_code,a.c.resource_type,a.c.resource_id,a.c.outcome,a.c.request_id]
+            rows=[dict(r) for r in s.execute(select(*fields).outerjoin(users,users.c.id==a.c.actor_user_id)
+                .order_by(a.c.occurred_at.desc(),a.c.id).offset((page-1)*page_size).limit(page_size)).mappings()]
             return {'items':rows,'total':s.execute(select(func.count()).select_from(a)).scalar_one(),'page':page,'page_size':page_size}
         return reply(run(request,'audit.read',listing,{'ADMIN'}))
     @router.get('/users/employee-options')

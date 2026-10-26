@@ -8,7 +8,7 @@ test('HR downloads Chinese XLSX, sees a precise failed row, and imports the corr
   test.skip(!credentials.hr,'Run through scripts/e2e_local.py for an independent fictional database');
   await page.goto('/login');await page.getByLabel('账号',{exact:true}).fill('fixture-hr');
   await page.getByLabel('密码',{exact:true}).fill(credentials.hr);await page.getByRole('button',{name:'登录',exact:true}).click();
-  await page.getByRole('link',{name:'员工档案',exact:true}).click();
+  await page.getByRole('navigation',{name:'业务菜单'}).getByRole('link',{name:'员工档案',exact:true}).click();
   await expect(page.getByText(/无需查询数据库ID/)).toBeVisible();
   const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'下载 XLSX 模板',exact:true}).click();
   const file=await (await downloadEvent).path();if(!file)throw new Error('Template download unavailable');
@@ -30,13 +30,13 @@ book.save(sys.argv[2]);sheet['E3']='2026-01-02';book.save(sys.argv[3])
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('第 3 行 · 入职日期');
   await expect(page.getByRole('alert')).toContainText('入职日期不是有效日历日期');
-  await expect(page.getByRole('button',{name:'确认整批导入',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'导入',exact:true})).toBeDisabled();
   await page.getByLabel('工号 / 姓名',{exact:true}).fill('XLSX-UI-');await page.getByRole('button',{name:'查询',exact:true}).click();
   await expect(page.getByText('当前授权范围暂无匹配员工。',{exact:true})).toBeVisible();
   await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(fixed);
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
-  await expect(page.getByRole('button',{name:'确认整批导入',exact:true})).toBeEnabled();
-  await page.getByRole('button',{name:'确认整批导入',exact:true}).click();
+  await expect(page.getByRole('button',{name:'导入',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'导入',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'已原子导入 2 名员工'})).toBeVisible();
   await expect(page.getByRole('row').filter({hasText:'XLSX-UI-GOOD'})).toBeVisible();
   await expect(page.getByRole('row').filter({hasText:'XLSX-UI-FIXED'})).toBeVisible();

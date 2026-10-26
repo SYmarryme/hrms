@@ -1,0 +1,38 @@
+<script setup lang="ts">
+import { computed,onMounted,onBeforeUnmount } from 'vue';
+import { useRoute,useRouter } from 'vue-router';
+import { logout } from '../api';
+import { visiblePages,cacheNames,canAccess } from '../policy';
+import { workspace,verifySession,closeTab,markDirty,openTab } from '../workspace';
+import { rolesText } from '../presentation';
+const route=useRoute(),router=useRouter();
+const menu=computed(()=>visiblePages(workspace.profile));
+const groups=computed(()=>[...new Set(menu.value.map(p=>p.group).filter(Boolean))]);
+const current=computed(()=>menu.value.find(p=>p.path===route.path));
+const included=computed(()=>workspace.tabs.map(t=>cacheNames[t.path]));
+async function close(path:string){const index=workspace.tabs.findIndex(t=>t.path===path);const next=workspace.tabs[index-1]?.path||'/';
+ if(closeTab(path,()=>window.confirm('此页面有未保存修改，确定关闭并放弃吗？'))&&route.path===path)await router.push(next);}
+function dirty(event:Event){const target=event.target as HTMLElement;
+ const form=target.closest('form');if(form&&!form.classList.contains('search-row'))markDirty(route.path,true,form.dataset.dirtyScope||'editor');
+ if(target.matches('input[type=file]'))markDirty(route.path,true,'file');}
+function cleared(event:MouseEvent){const button=(event.target as HTMLElement).closest<HTMLElement>('[data-clear-dirty]');if(button)markDirty(route.path,false,button.dataset.clearDirty||'editor');}
+async function recheck(){if(!document.hidden){await verifySession();if(workspace.profile){if(!canAccess(route.path,workspace.profile))await router.replace('/');else openTab(route.path);}}}
+function visibility(){if(document.hidden)workspace.cover=true;else void recheck();}
+function unload(event:BeforeUnloadEvent){if(workspace.tabs.some(t=>t.dirty)){event.preventDefault();event.returnValue='';}}
+let timer:ReturnType<typeof setInterval>;
+onMounted(()=>{timer=setInterval(async()=>{if(!document.hidden){await verifySession(false);if(workspace.profile){if(!canAccess(route.path,workspace.profile))await router.replace('/');else openTab(route.path);}}},5000);
+ window.addEventListener('focus',recheck);document.addEventListener('visibilitychange',visibility);window.addEventListener('beforeunload',unload);});
+onBeforeUnmount(()=>{clearInterval(timer);window.removeEventListener('focus',recheck);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('beforeunload',unload);});
+async function signOut(){try{await logout();}catch{window.alert('本地已退出，服务器撤销未确认；请重新登录。');}}
+</script>
+<template><div :class="['app-frame',{'nav-collapsed':workspace.collapsed}]">
+ <aside class="sidebar" aria-label="业务导航"><div class="shell-brand"><span class="brand-mark">H</span><span v-if="!workspace.collapsed">HRMS <small>员工管理系统</small></span></div>
+  <nav aria-label="业务菜单"><router-link v-for="p in menu.filter(x=>!x.group)" :key="p.path" :to="p.path" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span aria-hidden="true">▦</span><span>{{workspace.collapsed?'台':p.label}}</span></router-link>
+   <details v-for="group in groups" :key="group" open><summary>{{workspace.collapsed?group.slice(0,2):group}}</summary><router-link v-for="p in menu.filter(x=>x.group===group)" :key="p.path" :to="p.path" :title="p.label" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span class="nav-dot" aria-hidden="true"></span><span>{{workspace.collapsed?p.label.slice(0,2):p.label}}</span></router-link></details>
+  </nav><p v-if="!workspace.collapsed" class="sidebar-foot">课程 MVP · 本地工作空间</p></aside>
+ <div class="shell-body"><header class="shell-top"><button class="collapse-button" :aria-expanded="!workspace.collapsed" aria-label="折叠业务导航" @click="workspace.collapsed=!workspace.collapsed">☰</button><span class="shell-caption">企业员工管理系统</span><div class="account"><span class="avatar">{{workspace.profile?.username.slice(0,1).toUpperCase()}}</span><span>{{workspace.profile?.username}}<small>{{workspace.profile?rolesText(workspace.profile.roles):''}}</small></span><button class="text-button" @click="signOut">退出登录</button></div></header>
+ <nav class="tab-strip" aria-label="已打开的页面"><div v-for="tab in workspace.tabs" :key="tab.path" :class="['page-tab',{active:route.path===tab.path}]"><router-link :to="tab.path" :aria-current="route.path===tab.path?'page':undefined">{{tab.label}}<span v-if="tab.dirty" aria-label="未保存修改"> ·</span></router-link><button v-if="tab.path!=='/'" :aria-label="`关闭${tab.label}标签`" @click="close(tab.path)">×</button></div></nav>
+ <div class="workspace-content"><nav class="breadcrumb" aria-label="面包屑"><router-link to="/">首页</router-link><span v-if="current?.group">/ {{current.group}}</span><span>/ {{current?.label||'工作空间'}}</span></nav>
+  <div v-if="workspace.cover" class="verification" role="status">{{workspace.connectionError||'正在核验当前权限…'}}<button v-if="workspace.connectionError" @click="recheck">重新核验</button></div>
+  <div v-if="workspace.profile" v-show="!workspace.cover" @input="dirty" @change="dirty" @click="cleared"><router-view v-slot="{Component,route:pageRoute}"><keep-alive :include="included" :key="workspace.epoch"><component :is="Component" :key="pageRoute.path"/></keep-alive></router-view></div>
+ </div></div></div></template>

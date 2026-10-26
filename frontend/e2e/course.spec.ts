@@ -16,16 +16,14 @@ async function logout(page: Page) {
   await expect(page.getByRole('heading', {name:'登录'})).toBeVisible();
 }
 async function navigate(page: Page, destination: string) {
-  if (new URL(page.url()).pathname!=='/') await page.getByRole('link',{name:/返回.*主页/}).click();
-  if (destination==='/') return;
-  const links:Record<string,string>={'/departments':'进入部门管理','/positions':'职位管理','/employees':'员工档案','/attendance':'考勤管理','/leaves':'请假与审批','/salaries':'月度薪资','/dashboard':'数据看板'};
-  await page.getByRole('link',{name:links[destination],exact:true}).click();
+  const links:Record<string,string>={'/':'工作台','/departments':'部门管理','/positions':'职位管理','/employees':'员工档案','/attendance':'考勤管理','/leaves':'请假管理','/approvals':'直属部门审批','/salaries':'薪资管理','/dashboard':'数据看板'};
+  await page.getByRole('navigation',{name:'业务菜单'}).getByRole('link',{name:links[destination],exact:true}).click();
 }
 
 test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave → MANAGER decision → salary/dashboard', async ({page}) => {
   test.skip(!credentials.admin, 'Run through scripts/e2e_local.py to allocate an isolated database');
   await login(page,'admin');
-  await page.getByRole('link',{name:'用户管理',exact:true}).click();
+  await page.getByRole('navigation',{name:'业务菜单'}).getByRole('link',{name:'用户管理与审计',exact:true}).click();
   await expect(page.getByRole('cell',{name:'fixture-hr',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'创建账号',exact:true}).click();
   await page.getByLabel('账号',{exact:true}).fill('fixture-extra-admin');
@@ -36,7 +34,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   const extra=page.getByRole('row').filter({has:page.getByRole('cell',{name:'fixture-extra-admin',exact:true})});
   await extra.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();
   await page.getByLabel('状态',{exact:true}).selectOption('DISABLED');await page.getByRole('button',{name:'保存账号',exact:true}).click();
-  await expect(extra.getByRole('cell',{name:'DISABLED',exact:true})).toBeVisible();
+  await expect(extra.getByRole('cell',{name:'停用',exact:true})).toBeVisible();
   await logout(page);
 
   await login(page,'hr');
@@ -60,7 +58,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await employeeRow.getByRole('button',{name:'调动',exact:true}).click();await page.getByLabel('新部门',{exact:true}).selectOption({label:'[虚构课程]研发部'});
   await page.getByLabel('新职位',{exact:true}).selectOption({label:'[虚构课程]职员'});await page.getByRole('button',{name:'保存员工',exact:true}).click();
   await expect(employeeRow).toContainText('[虚构课程]研发部');
-  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'导出 CSV（当前搜索）',exact:true}).click();
+  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'导出 CSV（当前查询）',exact:true}).click();
   const download=await downloadPromise;const file=await download.path();if(!file)throw new Error('Download not available');
   const content=await fs.readFile(file,'utf8');expect(content).toContain('E2E-EMP');
   const lines=content.trim().split(/\r?\n/);const source=lines.find(line=>line.startsWith('E2E-EMP,'));if(!source)throw new Error('Export row missing');
@@ -69,11 +67,11 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(upload);
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
   await expect(page.getByText('预检有效；正式提交时服务端会重新校验。已写入 0 条。')).toBeVisible();
-  await page.getByRole('button',{name:'确认整批导入',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('导入');
-  page.once('dialog',dialog=>dialog.accept());await employeeRow.getByRole('button',{name:'离职归档',exact:true}).click();await expect(employeeRow).toContainText('TERMINATED');
+  await page.getByRole('button',{name:'导入',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('导入');
+  page.once('dialog',dialog=>dialog.accept());await employeeRow.getByRole('button',{name:'离职归档',exact:true}).click();await expect(employeeRow).toContainText('已离职');
   await navigate(page,'/positions');const positionRow=page.getByRole('row').filter({hasText:'E2E-POS'});
-  await positionRow.getByRole('button',{name:'编辑 / 启停',exact:true}).click();await page.getByLabel('职位状态',{exact:true}).selectOption('DISABLED');
-  await page.getByRole('button',{name:'保存职位',exact:true}).click();await expect(positionRow).toContainText('DISABLED');
+  await positionRow.getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('职位状态',{exact:true}).selectOption('DISABLED');
+  await page.getByRole('button',{name:'保存职位',exact:true}).click();await expect(positionRow).toContainText('停用');
   await navigate(page,'/departments');const departmentRow=page.getByRole('row').filter({has:page.getByRole('cell',{name:'E2E-DEPT',exact:true})});
   await departmentRow.getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('部门状态',{exact:true}).selectOption('DISABLED');
   await page.getByRole('button',{name:'保存部门',exact:true}).click();await expect(departmentRow.getByRole('cell',{name:'停用',exact:true})).toBeVisible();
@@ -95,7 +93,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await page.getByLabel('理由',{exact:true}).fill('虚构课程 Edge 请假');await page.getByRole('button',{name:'提交申请',exact:true}).click();
   await expect(page.getByRole('cell',{name:'待审批',exact:true})).toBeVisible();await logout(page);
 
-  await login(page,'manager');await navigate(page,'/leaves');await page.getByLabel('查询范围').selectOption('approval');
+  await login(page,'manager');await navigate(page,'/approvals');
   await page.getByRole('button',{name:'处理审批',exact:true}).click();await page.getByLabel('审批意见',{exact:true}).fill('虚构课程批准');
   await page.getByRole('button',{name:'批准',exact:true}).click();await expect(page.getByRole('cell',{name:'已批准',exact:true})).toBeVisible();await logout(page);
   await login(page,'employee');await navigate(page,'/leaves');await expect(page.getByRole('cell',{name:'已批准',exact:true})).toBeVisible();
