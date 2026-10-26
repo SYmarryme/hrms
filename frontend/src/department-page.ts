@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from 'vue';
 import { markDirty } from './workspace';
+import {confirmOperation} from './modal';
 import { ApiError, createDepartment, getDepartment, listDepartments, me, updateDepartment,
   type Department, type DepartmentRecord, type DepartmentInput, type Profile } from './api';
 
@@ -10,7 +11,7 @@ export function useDepartmentPage() {
   const profile = ref<Profile | null>(null);
   const canManage = computed(() => !!profile.value?.roles.includes('HR') && !!profile.value.employee_id && profile.value.employment_valid!==false);
   const state = reactive({ items: [] as Department[], q: '', page: 1, pageSize: 20, total: 0,
-    loading: false, busy: false, error: '', notice: '', mode: null as 'new' | 'edit' | 'detail' | null,
+    loaded:false, loading: false, busy: false, error: '', notice: '', mode: null as 'new' | 'edit' | 'detail' | null,
     detail: null as DepartmentRecord | null, summary: null as Department | null, etag: '', form: emptyForm(),
     parentOptions: [] as Department[], parentQ: '', parentPage: 1, parentTotal: 0, parentLoading: false });
   let generation = 0;
@@ -21,7 +22,7 @@ export function useDepartmentPage() {
     state.loading = true; state.error = '';
     try {
       const result = await listDepartments(state.q.trim(), state.page, state.pageSize);
-      if (mine === generation) { state.items = result.items; state.total = result.total; }
+      if (mine === generation) { state.items = result.items; state.total = result.total;state.loaded=true; }
     } catch (error) { if (mine === generation) { state.items = []; state.total = 0; state.error = safeError(error); } }
     finally { if (mine === generation) state.loading = false; }
   }
@@ -74,11 +75,12 @@ export function useDepartmentPage() {
   async function toggle(item:Department){
     if(!canManage.value||state.busy)return;
     const status=item.status==='ACTIVE'?'DISABLED':'ACTIVE';
-    if(!window.confirm(`确认${status==='DISABLED'?'停用':'恢复'}部门“${item.name}”？`))return;
-    state.busy=true;state.error='';state.notice='';
-    try{const latest=await getDepartment(item.id);await updateDepartment(item.id,{code:latest.item.code,name:latest.item.name,parent_id:latest.item.parent_id,status},latest.etag);
-      state.notice=status==='DISABLED'?'部门已停用':'部门已恢复';await load();
-    }catch(error){state.error=safeError(error);}finally{state.busy=false;}
+    await confirmOperation({title:status==='DISABLED'?'停用部门':'恢复部门',message:`确认${status==='DISABLED'?'停用':'恢复'}部门“${item.name}”？原有引用与层级约束仍由服务端检查。`,danger:status==='DISABLED'},async()=>{
+      state.busy=true;state.error='';state.notice='';
+      try{const latest=await getDepartment(item.id);await updateDepartment(item.id,{code:latest.item.code,name:latest.item.name,parent_id:latest.item.parent_id,status},latest.etag);
+        state.notice=status==='DISABLED'?'部门已停用':'部门已恢复';await load();
+      }finally{state.busy=false;}
+    });
   }
   return { state, canManage, initialize, load, search, go, parents, beginCreate, open, save, close, toggle };
 }

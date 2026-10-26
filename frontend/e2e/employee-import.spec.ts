@@ -26,17 +26,17 @@ for number,code,day in [(2,'XLSX-UI-GOOD','2026-01-01'),(3,'XLSX-UI-FIXED','2026
     for column,value in enumerate([code,'虚构中文模板员工',department,position,day,'在职'],1):sheet.cell(number,column,value)
 book.save(sys.argv[2]);sheet['E3']='2026-01-02';book.save(sys.argv[3])
 `,file,bad,fixed]);
-  await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(bad);
+  await page.getByRole('button',{name:'导入',exact:true}).click();await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(bad);
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('第 3 行 · 入职日期');
   await expect(page.getByRole('alert')).toContainText('入职日期不是有效日历日期');
-  await expect(page.getByRole('button',{name:'导入',exact:true})).toBeDisabled();
-  await page.getByLabel('工号 / 姓名',{exact:true}).fill('XLSX-UI-');await page.getByRole('button',{name:'查询',exact:true}).click();
-  await expect(page.getByText('当前授权范围暂无匹配员工。',{exact:true})).toBeVisible();
-  await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(fixed);
+  await expect(page.getByRole('dialog',{name:'员工文件导入'}).getByRole('button',{name:'导入',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'关闭弹窗'}).click();await page.getByRole('dialog',{name:'放弃未保存修改'}).getByRole('button',{name:'放弃修改'}).click();await page.getByLabel('工号 / 姓名',{exact:true}).fill('XLSX-UI-');await page.getByRole('button',{name:'查询',exact:true}).click();
+  await expect(page.getByText('暂无员工数据',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'导入',exact:true}).click();await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(fixed);
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
-  await expect(page.getByRole('button',{name:'导入',exact:true})).toBeEnabled();
-  await page.getByRole('button',{name:'导入',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'员工文件导入'}).getByRole('button',{name:'导入',exact:true})).toBeEnabled();
+  await page.getByRole('dialog',{name:'员工文件导入'}).getByRole('button',{name:'导入',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'已原子导入 2 名员工'})).toBeVisible();
   await expect(page.getByRole('row').filter({hasText:'XLSX-UI-GOOD'})).toBeVisible();
   await expect(page.getByRole('row').filter({hasText:'XLSX-UI-FIXED'})).toBeVisible();

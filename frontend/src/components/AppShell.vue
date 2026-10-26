@@ -5,6 +5,7 @@ import { logout } from '../api';
 import { visiblePages,cacheNames,canAccess } from '../policy';
 import { workspace,verifySession,closeTab,markDirty,openTab } from '../workspace';
 import { rolesText } from '../presentation';
+import NavIcon from './NavIcon.vue';
 const route=useRoute(),router=useRouter();
 const menu=computed(()=>visiblePages(workspace.profile));
 const groups=computed(()=>[...new Set(menu.value.map(p=>p.group).filter(Boolean))]);
@@ -27,9 +28,9 @@ async function signOut(){try{await logout();}catch{window.alert('本地已退出
 </script>
 <template><div :class="['app-frame',{'nav-collapsed':workspace.collapsed}]">
  <aside class="sidebar" aria-label="业务导航"><div class="shell-brand"><span class="brand-mark">H</span><span v-if="!workspace.collapsed">HRMS <small>员工管理系统</small></span></div>
-  <nav aria-label="业务菜单"><router-link v-for="p in menu.filter(x=>!x.group)" :key="p.path" :to="p.path" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span aria-hidden="true">▦</span><span>{{workspace.collapsed?'台':p.label}}</span></router-link>
-   <details v-for="group in groups" :key="group" open><summary>{{workspace.collapsed?group.slice(0,2):group}}</summary><router-link v-for="p in menu.filter(x=>x.group===group)" :key="p.path" :to="p.path" :title="p.label" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span class="nav-dot" aria-hidden="true"></span><span>{{workspace.collapsed?p.label.slice(0,2):p.label}}</span></router-link></details>
-  </nav><p v-if="!workspace.collapsed" class="sidebar-foot">课程 MVP · 本地工作空间</p></aside>
+  <nav aria-label="业务菜单"><template v-if="workspace.collapsed"><router-link v-for="(p,index) in menu" :key="p.path" :to="p.path" :title="p.label" :aria-label="p.label" :class="['nav-leaf','collapsed-leaf',{selected:route.path===p.path,'group-start':index>0&&p.group!==menu[index-1]?.group}]" :aria-current="route.path===p.path?'page':undefined"><NavIcon :path="p.path"/><span class="sr-only">{{p.label}}</span></router-link></template><template v-else><router-link v-for="p in menu.filter(x=>!x.group)" :key="p.path" :to="p.path" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span aria-hidden="true">▦</span><span>{{p.label}}</span></router-link>
+   <details v-for="group in groups" :key="group" open><summary>{{group}}</summary><router-link v-for="p in menu.filter(x=>x.group===group)" :key="p.path" :to="p.path" :title="p.label" :aria-label="p.label" :class="['nav-leaf',{selected:route.path===p.path}]" :aria-current="route.path===p.path?'page':undefined"><span class="nav-dot" aria-hidden="true"></span><span>{{p.label}}</span></router-link></details>
+  </template></nav></aside>
  <div class="shell-body"><header class="shell-top"><button class="collapse-button" :aria-expanded="!workspace.collapsed" aria-label="折叠业务导航" @click="workspace.collapsed=!workspace.collapsed">☰</button><span class="shell-caption">企业员工管理系统</span><div class="account"><span class="avatar">{{workspace.profile?.username.slice(0,1).toUpperCase()}}</span><span>{{workspace.profile?.username}}<small>{{workspace.profile?rolesText(workspace.profile.roles):''}}</small></span><button class="text-button" @click="signOut">退出登录</button></div></header>
  <nav class="tab-strip" aria-label="已打开的页面"><div v-for="tab in workspace.tabs" :key="tab.path" :class="['page-tab',{active:route.path===tab.path}]"><router-link :to="tab.path" :aria-current="route.path===tab.path?'page':undefined">{{tab.label}}<span v-if="tab.dirty" aria-label="未保存修改"> ·</span></router-link><button v-if="tab.path!=='/'" :aria-label="`关闭${tab.label}标签`" @click="close(tab.path)">×</button></div></nav>
  <div class="workspace-content"><nav class="breadcrumb" aria-label="面包屑"><router-link to="/">首页</router-link><span v-if="current?.group">/ {{current.group}}</span><span>/ {{current?.label||'工作空间'}}</span></nav>

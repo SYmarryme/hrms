@@ -14,6 +14,13 @@ sys.path.insert(0,str(ROOT))
 
 
 def main():
+    # Each spec gets a new random fictional database/server and the unchanged login limiter.
+    # This also prevents one spec's organization or role changes affecting the next spec.
+    if len(sys.argv)==1:
+        for spec in sorted((ROOT/'frontend/e2e').glob('*.spec.ts')):
+            result=subprocess.run([sys.executable,str(Path(__file__).resolve()),spec.name],cwd=ROOT)
+            if result.returncode:return result.returncode
+        return 0
     import json
     from backend.course_demo import create_demo, demo_path
     from backend.settings import Settings

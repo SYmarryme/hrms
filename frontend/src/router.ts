@@ -13,6 +13,7 @@ import Users from './views/Users.vue';
 import { defineComponent,h } from 'vue';
 import { canAccess } from './policy';
 import { workspace,resetWorkspace,verifySession,openTab } from './workspace';
+import {modalCount} from './modal';
 const EmployeeFiles=defineComponent({name:'EmployeeFiles',setup:()=>()=>h(Employees,{filesOnly:true})});
 const Approvals=defineComponent({name:'Approvals',setup:()=>()=>h(Leaves,{approvalMode:true})});
 
@@ -32,9 +33,10 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
     { path: '/users', component: Users, meta: { authenticated: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ] });
-  router.beforeEach(async to => {
+  router.beforeEach(async (to,from) => {
     if (to.meta.authenticated && !hasSession()) return '/login';
     if (to.path === '/login' && hasSession()) return '/';
+    if(modalCount.value&&to.path!==from.path&&to.path!=='/login'&&hasSession()&&canAccess(from.path,workspace.profile))return false;
     if(to.meta.authenticated){if(!await verifySession())return hasSession()?false:'/login';if(!canAccess(to.path,workspace.profile))return '/';openTab(to.path);}
   });
   setExpiredHandler(() => {resetWorkspace();void router.replace('/login');});

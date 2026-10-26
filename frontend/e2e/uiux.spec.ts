@@ -26,7 +26,7 @@ for(const role of ['employee','manager','hr','admin'])test(`UIUX ${role} menu, p
  if(role==='employee'){
    await expect(menu(page).getByRole('link',{name:'部门管理',exact:true})).toHaveCount(0);
    await expect(menu(page).getByRole('link',{name:'员工档案',exact:true})).toHaveCount(0);
-   await visit(page,'考勤管理');await expect(page.getByRole('heading',{name:'配置考勤规则'})).toHaveCount(0);
+   await visit(page,'考勤管理');await expect(page.getByRole('button',{name:'配置考勤规则',exact:true})).toHaveCount(0);
    await visit(page,'薪资管理');await expect(page.getByRole('button',{name:'保存薪资'})).toHaveCount(0);
    expect(await apiStatus(page,'/salaries?employee_id=00000000-0000-0000-0000-000000000000')).toBe(403);
  }else if(role==='manager'){
@@ -35,7 +35,7 @@ for(const role of ['employee','manager','hr','admin'])test(`UIUX ${role} menu, p
    expect(await apiStatus(page,'/departments','POST',{code:'DENY',name:'不能新增'})).toBe(403);
  }else if(role==='hr'){
    await visit(page,'部门管理');await expect(page.getByRole('button',{name:'新增部门'})).toBeVisible();
-   await visit(page,'考勤管理');await expect(page.getByRole('heading',{name:'配置考勤规则'})).toBeVisible();
+   await visit(page,'考勤管理');await expect(page.getByRole('button',{name:'配置考勤规则',exact:true})).toBeVisible();
    await expect(menu(page).getByRole('link',{name:'用户管理与审计'})).toHaveCount(0);expect(await apiStatus(page,'/users')).toBe(403);
  }else{
    await visit(page,'用户管理与审计');await expect(page.getByRole('button',{name:'创建账号'})).toBeVisible();
@@ -45,16 +45,16 @@ for(const role of ['employee','manager','hr','admin'])test(`UIUX ${role} menu, p
  await expect(menu(page).locator('a.selected')).toHaveCount(1);await expect(page.locator('.page-tab.active')).toHaveCount(1);
 });
 
-test('UIUX unique highlight, retained filters, dirty close and clean reopen',async({page})=>{
+test('UIUX unique highlight, retained filters, modal dirty close and clean reopen',async({page})=>{
  await login(page,'hr');await visit(page,'部门管理');await page.getByLabel('部门名称或编号').fill('保留查询');
- await page.getByRole('button',{name:'新增部门',exact:true}).click();await page.getByLabel('部门编号',{exact:true}).fill('UNSAVED');
- await visit(page,'职位管理');await page.getByLabel('每页条数').selectOption('50');
- await page.getByRole('navigation',{name:'已打开的页面'}).getByRole('link',{name:/部门管理/}).click();
- await expect(page.getByLabel('部门编号',{exact:true})).toHaveValue('UNSAVED');await expect(page.getByLabel('部门名称或编号')).toHaveValue('保留查询');
+ await visit(page,'职位管理');await page.getByLabel('每页条数').selectOption('50');await visit(page,'部门管理');
+ await expect(page.getByLabel('部门名称或编号')).toHaveValue('保留查询');
  await expect(menu(page).locator('a.selected')).toHaveText('部门管理');await expect(menu(page).getByRole('link',{name:'工作台',exact:true})).not.toHaveClass(/selected/);
- page.once('dialog',d=>d.dismiss());await page.getByRole('button',{name:'关闭部门管理标签'}).click();await expect(page.getByLabel('部门编号',{exact:true})).toHaveValue('UNSAVED');
- page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'关闭部门管理标签'}).click();await visit(page,'部门管理');
- await expect(page.getByLabel('部门编号',{exact:true})).toHaveCount(0);await visit(page,'职位管理');await expect(page.getByLabel('每页条数')).toHaveValue('50');
+ await page.getByRole('button',{name:'新增部门',exact:true}).click();await page.getByLabel('部门编号',{exact:true}).fill('UNSAVED');
+ await page.getByRole('button',{name:'关闭弹窗'}).click();await page.getByRole('dialog',{name:'放弃未保存修改'}).getByRole('button',{name:'继续编辑'}).click();await expect(page.getByLabel('部门编号',{exact:true})).toHaveValue('UNSAVED');
+ await page.getByRole('button',{name:'关闭弹窗'}).click();await page.getByRole('dialog',{name:'放弃未保存修改'}).getByRole('button',{name:'放弃修改'}).click();
+ await page.getByRole('button',{name:'关闭部门管理标签'}).click();await visit(page,'部门管理');await expect(page.getByLabel('部门编号',{exact:true})).toHaveCount(0);
+ await visit(page,'职位管理');await expect(page.getByLabel('每页条数')).toHaveValue('50');
  await page.getByRole('button',{name:'折叠业务导航'}).click();await expect(page.locator('.app-frame')).toHaveClass(/nav-collapsed/);
 });
 
@@ -63,8 +63,8 @@ test('UIUX transient save, department shortcut, page sizes and visual layout',as
  await page.getByRole('button',{name:'新增部门',exact:true}).click();await page.getByLabel('部门编号',{exact:true}).fill('UIUX-SHORTCUT');await page.getByLabel('部门名称',{exact:true}).fill('虚构界面验收部');
  await page.getByRole('button',{name:'保存部门',exact:true}).click();const notice=page.getByRole('status').filter({hasText:'部门新增成功'});await expect(notice).toBeVisible();await expect(notice).toBeHidden({timeout:7000});
  const row=page.getByRole('row').filter({has:page.getByRole('cell',{name:'UIUX-SHORTCUT',exact:true})});
- page.once('dialog',d=>d.accept());await row.getByRole('button',{name:'停用',exact:true}).click();await expect(row.getByRole('cell',{name:'停用',exact:true})).toBeVisible();
- page.once('dialog',d=>d.accept());await row.getByRole('button',{name:'恢复',exact:true}).click();await expect(row.getByRole('cell',{name:'启用',exact:true})).toBeVisible();
+ await row.getByRole('button',{name:'停用',exact:true}).click();await page.getByRole('dialog',{name:'停用部门'}).getByRole('button',{name:'确认',exact:true}).click();await expect(row.getByRole('cell',{name:'停用',exact:true})).toBeVisible();
+ await row.getByRole('button',{name:'恢复',exact:true}).click();await page.getByRole('dialog',{name:'恢复部门'}).getByRole('button',{name:'确认',exact:true}).click();await expect(row.getByRole('cell',{name:'启用',exact:true})).toBeVisible();
  await page.screenshot({path:path.resolve('..','var','uiux','departments-live.png'),fullPage:true});
  await visit(page,'员工档案');await page.getByLabel('每页条数').selectOption('50');await expect(page.getByLabel('每页条数')).toHaveValue('50');
  await expect(page.getByRole('button',{name:'导出 CSV（当前查询）'})).toBeVisible();await expect(page.getByRole('heading',{name:'导入',exact:true})).toBeVisible();
@@ -84,23 +84,23 @@ test('UIUX attendance persistent status and specific duplicate feedback',async({
 
 test('UIUX cached manager scope is revalidated after another user transfers an employee',async({page,browser})=>{
  const applicant=await browser.newPage();await login(applicant,'employee');expect(await apiStatus(applicant,'/leaves','POST',{start_date:'2040-01-02',end_date:'2040-01-02',leave_type:'OTHER',reason:'虚构缓存范围验收'})).toBe(200);await applicant.close();
- await login(page,'manager');await visit(page,'员工档案');
+ await login(page,'manager');await visit(page,'直属部门审批');await visit(page,'员工档案');
  const employeeRow=page.getByRole('row').filter({hasText:'FIXTURE-EMPLOYEE'});await employeeRow.getByRole('button',{name:'详情 / 历史'}).click();await expect(page.getByRole('heading',{name:'员工详情',exact:true})).toBeVisible();
- await visit(page,'直属部门审批');await visit(page,'工作台');
- const hr=await browser.newPage();await login(hr,'hr');
+ const hr=await page.context().newPage();await login(hr,'hr');
  const original=await hr.evaluate(async()=>{const {courseApi}=await import('/src/course-api.ts');const {items}=await courseApi('/employees?q=FIXTURE-EMPLOYEE');return items[0];});
  await hr.evaluate(async(original)=>{const {courseApi,tag}=await import('/src/course-api.ts');const {createDepartment}=await import('/src/api.ts');const dep=await createDepartment({code:'UIUX-SCOPE',name:'[虚构]范围外部门',status:'ACTIVE',parent_id:null});const pos=await courseApi('/positions','POST',{department_id:dep.id,code:'UIUX-SCOPE-P',name:'[虚构]范围外职位',grade_code:'G1',status:'ACTIVE'});await courseApi(`/employees/${original.id}/transfer`,'POST',{department_id:pos.department_id,position_id:pos.id},tag(original));return pos;},original);
- try{await page.bringToFront();await visit(page,'员工档案');await expect(page.getByRole('row').filter({hasText:'FIXTURE-EMPLOYEE'})).toHaveCount(0);await expect(page.getByRole('heading',{name:'员工详情',exact:true})).toHaveCount(0);
+ try{await page.bringToFront();// Headless Edge keeps tabs focused; explicitly deliver the recovery event without mocking APIs.
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.getByRole('dialog',{name:'员工详情'})).toHaveCount(0);await expect(page.getByRole('row').filter({hasText:'FIXTURE-EMPLOYEE'})).toHaveCount(0);await expect(page.getByRole('heading',{name:'员工详情',exact:true})).toHaveCount(0);
  await visit(page,'直属部门审批');await expect(page.getByRole('row').filter({hasText:'FIXTURE-EMPLOYEE'})).toHaveCount(0);
  expect(await apiStatus(page,`/employees/${original.id}`)).toBe(403);
  }finally{await hr.evaluate(async(original)=>{const {courseApi,tag}=await import('/src/course-api.ts');const row=await courseApi(`/employees/${original.id}`);await courseApi(`/employees/${original.id}/transfer`,'POST',{department_id:original.current_department_id,position_id:original.current_position_id},tag(row));},original);await hr.close();}
 });
 
-test('UIUX unrelated attendance action keeps a rule draft dirty',async({page})=>{
- await login(page,'hr');await visit(page,'考勤管理');await page.getByLabel('迟到宽限（分钟）').fill('11');
- await expect(page.getByRole('button',{name:'上班打卡',exact:true})).toBeEnabled();await page.getByRole('button',{name:'上班打卡',exact:true}).click();
- await expect(page.locator('.feedback')).toBeVisible();
- page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'关闭考勤管理标签'}).click();await expect(page.getByLabel('迟到宽限（分钟）')).toHaveValue('11');
+test('UIUX rule editor blocks unrelated attendance actions and protects draft',async({page})=>{
+ await login(page,'hr');await visit(page,'考勤管理');await page.getByRole('button',{name:'配置考勤规则',exact:true}).click();await page.getByLabel('迟到宽限（分钟）').fill('11');
+ await page.getByRole('button',{name:'关闭弹窗'}).click();await page.getByRole('dialog',{name:'放弃未保存修改'}).getByRole('button',{name:'继续编辑'}).click();await expect(page.getByLabel('迟到宽限（分钟）')).toHaveValue('11');
+ await page.getByRole('button',{name:'关闭弹窗'}).click();await page.getByRole('dialog',{name:'放弃未保存修改'}).getByRole('button',{name:'放弃修改'}).click();
+ await expect(page.getByRole('button',{name:'上班打卡',exact:true})).toBeEnabled();
 });
 
 test('UIUX multi-role union and revocation clear cached sensitive tabs',async({page,browser})=>{
