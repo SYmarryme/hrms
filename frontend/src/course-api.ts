@@ -31,7 +31,12 @@ export function downloadEmployees(format: 'csv' | 'xlsx', template: boolean, q =
   const extra=(departmentId?'&department_id='+encodeURIComponent(departmentId):'')+(status?'&status='+encodeURIComponent(status):'');
   return template ? employeeFile(`/employees/template?format=${format}`) : employeeFile(`/employees/export?format=${format}&q=${encodeURIComponent(q)}${extra}`);
 }
-export function saveFile(blob: Blob, name: string) {
+let lastFileStart=Number.NEGATIVE_INFINITY;
+export async function saveFile(blob: Blob, name: string) {
+  // Respect Chromium's burst download limit without weakening browser safeguards.
+  const delay=Math.max(0,150-(performance.now()-lastFileStart));
+  if(delay)await new Promise<void>(resolve=>setTimeout(resolve,delay));
+  lastFileStart=performance.now();
   const url = URL.createObjectURL(blob); const link = document.createElement('a');
   link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

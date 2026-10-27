@@ -410,12 +410,26 @@ class CourseService:
                 late += int(row['late']); early += int(row['early'])
                 if row['clock_out_at']: complete.add(row['work_date'])
         by_day = {row['work_date']:row for row in records}
+        ended_days=set()
         for day in due:
             rule = self.rule(session,day)
             ended = day < today or now.astimezone(SHANGHAI).time().replace(tzinfo=None) >= time.fromisoformat(rule['end_time'])
+            if ended:ended_days.add(day)
             if ended and (day not in by_day or by_day[day]['clock_out_at'] is None): missing += 1
+        # One category per planned day. Existing overlapping text counters stay unchanged.
+        categories=dict.fromkeys(('NORMAL','LATE','EARLY','LATE_EARLY','MISSING','APPROVED_LEAVE','IN_PROGRESS','UPCOMING'),0)
+        for day in planned:
+            row=by_day.get(day)
+            if day in leave_days:category='APPROVED_LEAVE'
+            elif day>today:category='UPCOMING'
+            elif not row or row['clock_out_at'] is None:category='MISSING' if day in ended_days else 'IN_PROGRESS'
+            elif row['late'] and row['early']:category='LATE_EARLY'
+            elif row['late']:category='LATE'
+            elif row['early']:category='EARLY'
+            else:category='NORMAL'
+            categories[category]+=1
         denominator = len(expected)
-        return {'employee_id':eid, 'month':month, 'today':today, 'items':records, 'summary':{'planned_days':len(planned), 'leave_days':len(leave_days & planned),
+        return {'employee_id':eid, 'month':month, 'today':today, 'items':records, 'overview':{'total_days':len(planned),'items':[{'name':name,'count':count} for name,count in categories.items()]}, 'summary':{'planned_days':len(planned), 'leave_days':len(leave_days & planned),
             'expected_days':denominator, 'complete_days':len(complete), 'late_days':late, 'early_days':early, 'missing_days':missing,
             'attendance_rate':str((Decimal(len(complete))*100/Decimal(denominator)).quantize(Decimal('0.01'))) if denominator else None}}
 
