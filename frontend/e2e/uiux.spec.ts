@@ -31,7 +31,7 @@ for(const role of ['employee','manager','hr','admin'])test(`UIUX ${role} menu, p
    expect(await apiStatus(page,'/salaries?employee_id=00000000-0000-0000-0000-000000000000')).toBe(403);
  }else if(role==='manager'){
    await expect(menu(page).getByRole('link',{name:'直属部门审批',exact:true})).toBeVisible();
-   await visit(page,'员工档案');await expect(page.getByRole('button',{name:'新增员工'})).toHaveCount(0);await expect(page.getByRole('button',{name:'导出 CSV（当前查询）'})).toBeVisible();await expect(page.getByRole('button',{name:'下载 XLSX 模板'})).toHaveCount(0);await expect(page.getByRole('heading',{name:'导入',exact:true})).toHaveCount(0);
+   await visit(page,'员工档案');await expect(page.getByRole('button',{name:'新增员工'})).toHaveCount(0);await expect(page.getByRole('button',{name:'导出 CSV（当前查询）'})).toBeVisible();await expect(page.getByRole('button',{name:'下载 XLSX 模板'})).toHaveCount(0);await expect(page.getByRole('heading',{name:'批量导入员工',exact:true})).toHaveCount(0);
    expect(await apiStatus(page,'/departments','POST',{code:'DENY',name:'不能新增'})).toBe(403);
  }else if(role==='hr'){
    await visit(page,'部门管理');await expect(page.getByRole('button',{name:'新增部门'})).toBeVisible();
@@ -67,7 +67,7 @@ test('UIUX transient save, department shortcut, page sizes and visual layout',as
  await row.getByRole('button',{name:'恢复',exact:true}).click();await page.getByRole('dialog',{name:'恢复部门'}).getByRole('button',{name:'确认',exact:true}).click();await expect(row.getByRole('cell',{name:'启用',exact:true})).toBeVisible();
  await page.screenshot({path:path.resolve('..','var','uiux','departments-live.png'),fullPage:true});
  await visit(page,'员工档案');await page.getByLabel('每页条数').selectOption('50');await expect(page.getByLabel('每页条数')).toHaveValue('50');
- await expect(page.getByRole('button',{name:'导出 CSV（当前查询）'})).toBeVisible();await expect(page.getByRole('heading',{name:'导入',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'导出 CSV（当前查询）'})).toBeVisible();await expect(page.getByRole('heading',{name:'批量导入员工',exact:true})).toBeVisible();
 });
 
 test('UIUX attendance persistent status and specific duplicate feedback',async({page})=>{
@@ -112,12 +112,12 @@ test('UIUX multi-role union and revocation clear cached sensitive tabs',async({p
  await page.getByRole('button',{name:'退出登录',exact:true}).click();await login(page,'hr','fixture-uiux-multi');await visit(page,'薪资管理');await visit(page,'员工档案');
  await visit(admin,'用户管理与审计');
  const row=admin.getByRole('row').filter({has:admin.getByRole('cell',{name:'fixture-uiux-multi',exact:true})});
- await row.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();await admin.getByLabel('ADMIN',{exact:true}).check();await admin.getByRole('button',{name:'保存账号',exact:true}).click();
+ await row.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();await admin.getByLabel('系统管理员',{exact:true}).check();await admin.getByRole('button',{name:'保存账号',exact:true}).click();
  await expect(admin.getByRole('status').filter({hasText:'账号已保存'})).toBeVisible();
  await page.bringToFront();await expect(page.getByRole('heading',{name:'登录账号'})).toBeVisible({timeout:10000});
  await expect(page.getByRole('navigation',{name:'已打开的页面'})).toHaveCount(0);
  await login(page,'hr','fixture-uiux-multi');await expect(menu(page).getByRole('link',{name:'用户管理与审计',exact:true})).toBeVisible();await expect(menu(page).getByRole('link',{name:'薪资管理',exact:true})).toBeVisible();
- await visit(page,'薪资管理');await admin.bringToFront();await row.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();await admin.getByLabel('HR',{exact:true}).uncheck();await admin.getByRole('button',{name:'保存账号',exact:true}).click();
+ await visit(page,'薪资管理');await admin.bringToFront();await row.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();await admin.getByLabel('人事',{exact:true}).uncheck();await admin.getByRole('button',{name:'保存账号',exact:true}).click();
  await expect(admin.getByRole('status').filter({hasText:'账号已保存'})).toBeVisible();await page.bringToFront();await expect(page.getByRole('heading',{name:'登录账号'})).toBeVisible({timeout:10000});
  await login(page,'hr','fixture-uiux-multi');await expect(menu(page).getByRole('link',{name:'薪资管理',exact:true})).toHaveCount(0);expect(await apiStatus(page,'/salaries')).toBe(403);
  await admin.close();

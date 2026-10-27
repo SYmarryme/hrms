@@ -28,7 +28,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await page.getByRole('button',{name:'创建账号',exact:true}).click();
   await page.getByLabel('账号',{exact:true}).fill('fixture-extra-admin');
   await page.getByLabel('初始密码',{exact:true}).fill(credentials.admin+'A');
-  await page.getByLabel('EMPLOYEE',{exact:true}).uncheck();await page.getByLabel('ADMIN',{exact:true}).check();
+  await page.getByLabel('员工',{exact:true}).uncheck();await page.getByLabel('系统管理员',{exact:true}).check();
   await page.getByRole('button',{name:'保存账号',exact:true}).click();
   await expect(page.locator('.feedback[role="status"]')).toContainText('保存');
   const extra=page.getByRole('row').filter({has:page.getByRole('cell',{name:'fixture-extra-admin',exact:true})});
@@ -64,10 +64,10 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   const lines=content.trim().split(/\r?\n/);const source=lines.find(line=>line.startsWith('E2E-EMP,'));if(!source)throw new Error('Export row missing');
   const upload=path.resolve('..','var','mvp','e2e-import.csv');
   await fs.writeFile(upload,lines[0]+'\r\n'+source.replace('E2E-EMP','E2E-IMPORT')+'\r\n');
-  await page.getByRole('button',{name:'导入',exact:true}).click();await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(upload);
+  await page.getByRole('button',{name:'导入员工',exact:true}).click();await page.getByLabel('选择模板文件',{exact:true}).setInputFiles(upload);
   await page.getByRole('button',{name:'预检文件',exact:true}).click();
-  await expect(page.getByText('预检有效；正式提交时服务端会重新校验。已写入 0 条。')).toBeVisible();
-  await page.getByRole('dialog',{name:'员工文件导入'}).getByRole('button',{name:'导入',exact:true}).click();await expect(page.locator('.feedback[role="status"]').first()).toContainText('导入');
+  await expect(page.getByText('预检通过，共 1 条员工资料，请确认后导入。')).toBeVisible();
+  await page.getByRole('dialog',{name:'导入员工'}).getByRole('button',{name:'导入',exact:true}).click();await expect(page.locator('.feedback[role="status"]').first()).toContainText('导入');
   await employeeRow.getByRole('button',{name:'离职归档',exact:true}).click();await page.getByRole('dialog',{name:'离职归档'}).getByRole('button',{name:'确认',exact:true}).click();await expect(employeeRow).toContainText('已离职');
   await navigate(page,'/positions');const positionRow=page.getByRole('row').filter({hasText:'E2E-POS'});
   await positionRow.getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('职位状态',{exact:true}).selectOption('DISABLED');
@@ -99,5 +99,5 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await login(page,'employee');await navigate(page,'/leaves');await expect(page.getByRole('cell',{name:'已批准',exact:true})).toBeVisible();
   await navigate(page,'/salaries');await expect(page.getByRole('cell',{name:'8800.50',exact:true})).toBeVisible();
   await page.reload();await expect(page.getByRole('heading',{name:'登录'})).toBeVisible();
-  await login(page,'hr');await navigate(page,'/dashboard');await expect(page.getByRole('heading',{name:'近六个月应发总额（仅 HR）',exact:true})).toBeVisible();await expect(page.getByText('8800.50 元',{exact:true})).toBeVisible();
+  await login(page,'hr');await navigate(page,'/dashboard');await expect(page.getByRole('heading',{name:'近六个月应发总额',exact:true})).toBeVisible();await expect(page.getByRole('group',{name:'近六个月应发总额折线图'}).getByRole('img',{name:/8,800.50元/})).toBeVisible();
 });

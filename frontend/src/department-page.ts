@@ -75,7 +75,7 @@ export function useDepartmentPage() {
   async function toggle(item:Department){
     if(!canManage.value||state.busy)return;
     const status=item.status==='ACTIVE'?'DISABLED':'ACTIVE';
-    await confirmOperation({title:status==='DISABLED'?'停用部门':'恢复部门',message:`确认${status==='DISABLED'?'停用':'恢复'}部门“${item.name}”？原有引用与层级约束仍由服务端检查。`,danger:status==='DISABLED'},async()=>{
+    await confirmOperation({title:status==='DISABLED'?'停用部门':'恢复部门',message:`确认${status==='DISABLED'?'停用':'恢复'}部门“${item.name}”？请先处理在职人员、下级部门及相关授权。`,danger:status==='DISABLED'},async()=>{
       state.busy=true;state.error='';state.notice='';
       try{const latest=await getDepartment(item.id);await updateDepartment(item.id,{code:latest.item.code,name:latest.item.name,parent_id:latest.item.parent_id,status},latest.etag);
         state.notice=status==='DISABLED'?'部门已停用':'部门已恢复';await load();

@@ -49,7 +49,7 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string, bin
     // Only known constant user messages; never include response bodies/requests in errors.
     let message = response.status === 401 ? '账号或密码错误，或会话已失效' : response.status === 403 ? '当前请求没有访问权限' :
       response.status === 429 ? '尝试过于频繁，请稍后重试' : response.status === 412 ? '记录已被其他操作修改，请重新读取详情后编辑' :
-      response.status === 428 ? '缺少编辑版本，请先读取详情' : response.status === 409 ? '编号重复或存在层级、在职归属等业务冲突，请核对后重试' :
+      response.status === 428 ? '请先重新打开详情，再进行修改' : response.status === 409 ? '编号重复或存在层级、在职归属等业务冲突，请核对后重试' :
       response.status === 422 ? '输入或查询参数不正确，请核对字段与长度' : response.status === 404 ? '记录不存在，请刷新列表' : '操作未完成，请稍后重试';
     // Only explicitly approved messages; arbitrary gateway/server text is never reflected.
     try{const payload:unknown=await response.json();if(payload&&typeof payload==='object'&&'error' in payload){const error=payload.error;
@@ -94,7 +94,7 @@ export async function listDepartments(q = '', page = 1, pageSize = 20): Promise<
 }
 export async function getDepartment(id: string): Promise<{ item: DepartmentRecord; etag: string }> {
   const result = await request(`/departments/${encodeURIComponent(id)}`);
-  if (!result.etag || !/^"v[1-9]\d*"$/.test(result.etag)) throw new ApiError(0, 'INVALID_RESPONSE', '服务未返回可用的部门版本');
+  if (!result.etag || !/^"v[1-9]\d*"$/.test(result.etag)) throw new ApiError(0, 'INVALID_RESPONSE', '暂时无法编辑此部门，请刷新后重试');
   return { item: result.data, etag: result.etag };
 }
 export async function createDepartment(input: DepartmentInput): Promise<DepartmentRecord> {

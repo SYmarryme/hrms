@@ -20,4 +20,8 @@ describe('protected route navigation', () => {
     await router.push('/login');
     expect(router.currentRoute.value.path).toBe('/');
   });
+  it('redirects the retired employee-files URL to the authorized employee page',async()=>{
+    vi.mocked(hasSession).mockReturnValue(true);vi.mocked(me).mockResolvedValue({id:'fixture',username:'fixture',employee_id:'employee',status:'ACTIVE',roles:['HR'],session:{id:'s',created_at:'',expires_at:''}});
+    const router=makeRouter(createMemoryHistory());await router.push('/employee-files');expect(router.currentRoute.value.path).toBe('/employees');
+  });
 });

@@ -419,7 +419,7 @@ class CourseService:
             'expected_days':denominator, 'complete_days':len(complete), 'late_days':late, 'early_days':early, 'missing_days':missing,
             'attendance_rate':str((Decimal(len(complete))*100/Decimal(denominator)).quantize(Decimal('0.01'))) if denominator else None}}
 
-    def leaves(self, session, principal, scope, page=1, page_size=20):
+    def leaves(self, session, principal, scope, page=1, page_size=20, now=None, status=None, leave_type=None, submitted_from=None, submitted_to=None):
         table = T['course_leaves']; conditions = [table.c.employee_id == principal['employee_id']]
         if scope == 'approval':
             if 'MANAGER' not in principal['roles']: reject(403, '需要主管权限', 'AUTHORIZATION_DENIED')
@@ -427,13 +427,37 @@ class CourseService:
             deps = self.manager_departments(session, principal)
             current = select(T['employees'].c.id).where(T['employees'].c.current_department_id.in_(deps))
             conditions = [table.c.department_id.in_(deps), table.c.employee_id.in_(current), table.c.employee_id != principal['employee_id']]
+        summary=None
+        if scope=='mine':
+            local=(now or self.auth.now()).astimezone(SHANGHAI)
+            first,last=month_dates(local.strftime('%Y-%m'))
+            lower=utc(datetime.combine(first,time.min,tzinfo=SHANGHAI))
+            upper=utc(datetime.combine(last+timedelta(days=1),time.min,tzinfo=SHANGHAI))
+            # Aggregate ONLY this principal's records, independently of list filters/page.
+            counts=session.execute(select(
+                func.count().filter(and_(table.c.created_at>=lower,table.c.created_at<upper)).label('submitted_this_month'),
+                func.count().filter(table.c.status=='PENDING').label('pending'),
+                func.count().filter(table.c.status=='APPROVED').label('approved'),
+                func.count().filter(table.c.status=='REJECTED').label('rejected'))
+                .where(table.c.employee_id==principal['employee_id'])).mappings().one()
+            summary={'month':local.strftime('%Y-%m'),**dict(counts)}
+        if submitted_from and submitted_to and submitted_from>submitted_to:
+            reject(422,'申请开始日期不能晚于结束日期','VALIDATION_ERROR')
+        if status:conditions.append(table.c.status==status)
+        if leave_type:conditions.append(table.c.leave_type==leave_type)
+        try:
+            if submitted_from:conditions.append(table.c.created_at>=utc(datetime.combine(submitted_from,time.min,tzinfo=SHANGHAI)))
+            if submitted_to:conditions.append(table.c.created_at<=utc(datetime.combine(submitted_to,time.max,tzinfo=SHANGHAI)))
+        except (OverflowError,ValueError):reject(422,'申请日期超出可查询范围','VALIDATION_ERROR')
         total = session.execute(select(func.count()).select_from(table).where(*conditions)).scalar_one()
         rows = [dict(r) for r in session.execute(select(table).where(*conditions).order_by(table.c.created_at.desc(),table.c.id).offset((page-1)*page_size).limit(page_size)).mappings()]
         self.human_employees(session,rows)
         actor_ids={row['decided_by'] for row in rows if row['decided_by']}
         actors=dict(session.execute(select(users.c.id,users.c.username).where(users.c.id.in_(actor_ids))).all())
         for row in rows:row['decided_by_username']=actors.get(row['decided_by'])
-        return {'items':rows,'total':total,'page':page,'page_size':page_size}
+        result={'items':rows,'total':total,'page':page,'page_size':page_size}
+        if summary is not None:result['summary']=summary
+        return result
 
     def leave_create(self, session, principal, now, data):
         days = self.workdays(session, data['start_date'], data['end_date'])
@@ -652,8 +676,11 @@ def make_router(bearer):
     def attendance(request:Request,month:str,employee_id:UUID|None=None):
         return reply(run(request,'attendance.read',lambda s,p,n:service(request).attendance(s,p,n,month,str(employee_id) if employee_id else None),{'HR','MANAGER','EMPLOYEE'}))
     @router.get('/leaves')
-    def leave_list(request:Request,scope:Literal['mine','approval']='mine',page:int=Query(1,ge=1,le=2147483647),page_size:int=Query(20,ge=1,le=100)):
-        return reply(run(request,'leave.read',lambda s,p,n:service(request).leaves(s,p,scope,page,page_size),{'HR','MANAGER','EMPLOYEE'}))
+    def leave_list(request:Request,scope:Literal['mine','approval']='mine',page:int=Query(1,ge=1,le=2147483647),page_size:int=Query(20,ge=1,le=100),
+                   status:Literal['PENDING','APPROVED','REJECTED','CANCELLED']|None=None,
+                   leave_type:Literal['ANNUAL','SICK','PERSONAL','OTHER']|None=None,submitted_from:date|None=None,submitted_to:date|None=None):
+        return reply(run(request,'leave.read',lambda s,p,n:service(request).leaves(s,p,scope,page,page_size,now=n,status=status,
+            leave_type=leave_type,submitted_from=submitted_from,submitted_to=submitted_to),{'HR','MANAGER','EMPLOYEE'}))
     @router.post('/leaves')
     def leave_create(payload:LeaveInput,request:Request):
         return reply(run(request,'leave.create',lambda s,p,n:service(request).leave_create(s,p,n,values(payload)),{'HR','MANAGER','EMPLOYEE'},True),201)

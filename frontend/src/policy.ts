@@ -9,7 +9,6 @@ export const pages:PagePolicy[]=[
  {path:'/departments',label:'部门管理',group:'组织人事',visible:p=>isHR(p)||hasRole(p,'ADMIN')},
  {path:'/positions',label:'职位管理',group:'组织人事',visible:p=>isHR(p)||hasRole(p,'ADMIN')},
  {path:'/employees',label:'员工档案',group:'组织人事',visible:p=>isHR(p)||(hasRole(p,'MANAGER')&&employed(p))},
- {path:'/employee-files',label:'员工文件',group:'组织人事',visible:isHR},
  {path:'/attendance',label:'考勤管理',group:'考勤与请假',visible:selfService},
  {path:'/leaves',label:'请假管理',group:'考勤与请假',visible:selfService},
  {path:'/approvals',label:'直属部门审批',group:'考勤与请假',visible:p=>hasRole(p,'MANAGER')&&employed(p)},
@@ -19,4 +18,4 @@ export const pages:PagePolicy[]=[
 ];
 export const visiblePages=(p:Profile|null)=>p?pages.filter(page=>page.visible(p)):[];
 export const canAccess=(path:string,p:Profile|null)=>!!p&&!!pages.find(page=>page.path===path)?.visible(p);
-export const cacheNames:Record<string,string>={'/':'Home','/departments':'Departments','/positions':'Positions','/employees':'Employees','/employee-files':'EmployeeFiles','/attendance':'Attendance','/leaves':'Leaves','/approvals':'Approvals','/salaries':'Salaries','/dashboard':'Dashboard','/users':'Users'};
+export const cacheNames:Record<string,string>={'/':'Home','/departments':'Departments','/positions':'Positions','/employees':'Employees','/attendance':'Attendance','/leaves':'Leaves','/approvals':'Approvals','/salaries':'Salaries','/dashboard':'Dashboard','/users':'Users'};

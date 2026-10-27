@@ -14,7 +14,7 @@ export function formatBeijing(value:string|null|undefined) {
 }
 export const employeeLabel=(row:{employee_name?:string|null;employee_no?:string|null},fallback='本人')=>row.employee_name?`${row.employee_name}${row.employee_no?' · '+row.employee_no:''}`:fallback;
 export const eventLabel=(code:string)=>({COURSE_EMPLOYEE_CREATE:'员工建档',COURSE_EMPLOYEE_EDIT:'档案修改',COURSE_TRANSFER:'组织调动',COURSE_TERMINATION:'离职归档'} as Record<string,string>)[code]||'员工信息变更';
-const actions:Record<string,string>={'auth.login':'登录','auth.logout':'退出登录','system.bootstrap.complete':'身份初始化','course.fixture.initialize':'虚构课程库初始化',
+const actions:Record<string,string>={'auth.login':'登录','auth.logout':'退出登录','system.bootstrap.complete':'身份初始化','course.fixture.initialize':'初始化资料',
  'identity.role.assign':'角色授权变更','identity.create':'创建账号','identity.password.reset':'重置密码','auth.password.reset':'重置密码','identity.hr.initialize':'首次HR授权',
  'org.department.create':'新增部门','org.department.update':'修改部门','position.create':'新增职位','position.update':'修改职位','employee.create':'新增员工',
  'employee.update':'修改员工','employee.transfer':'员工调动','employee.archive':'离职归档','employee.export':'导出员工','employee.import.commit':'导入员工',

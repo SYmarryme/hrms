@@ -34,7 +34,7 @@ watch(()=>pageActivity?.active.value,active=>{if(active===false)hide();else show
 onBeforeUnmount(()=>{mounted=false;hide();if(props.trackChanges)markDirty(pagePath,false,props.scope);});
 </script>
 <template><Teleport to="body"><dialog ref="dialog" :aria-labelledby="titleId" :class="['business-modal',{'modal-wide':wide}]" @cancel.prevent="requestClose" tabindex="-1" @keydown="trapFocus" @click.capture="cancelClick" @submit.capture="guardSubmit" @input="dirty" @change="dirty">
- <div v-if="concealed" class="modal-verification" role="status">正在核验权限与数据范围，内容暂不显示。<button @click="retry">重新核验</button></div>
+ <div v-if="concealed" class="modal-verification" role="status">正在确认访问权限，请稍候。<button @click="retry">重试</button></div>
  <div v-show="!concealed" class="modal-layout"><header class="modal-heading"><h2 :id="titleId">{{title}}</h2><button type="button" class="modal-close" aria-label="关闭弹窗" :disabled="busy" @click="requestClose">×</button></header>
  <div class="modal-content"><p v-if="error" class="error feedback" role="alert">{{error}}</p><fieldset class="modal-fields" :disabled="busy"><slot/></fieldset></div><footer v-if="$slots.footer||!trackChanges" class="modal-footer"><slot name="footer"><button type="button" class="secondary" :disabled="busy" data-modal-cancel>关闭</button></slot></footer></div>
 </dialog></Teleport></template>

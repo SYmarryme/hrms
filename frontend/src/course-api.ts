@@ -3,7 +3,9 @@ import { ApiError, courseRequest, employeeFile, type CoursePath } from './api';
 export interface Page<T> { items: T[]; total: number; page: number; page_size: number }
 export interface Position { id: string; department_id: string; code: string; name: string; grade_code: string; status: string; version_no: number; employee_count?: number }
 export interface Employee { id: string; employee_no: string; full_name: string; current_department_id: string; current_position_id: string; hire_date: string; employment_status: string; version_no: number; history?: {event_type: string; created_at: string;old_status?:string|null;new_status?:string|null}[] }
-export interface Leave { id: string; employee_id: string; employee_name?:string;employee_no?:string;department_id: string; start_date: string; end_date: string; leave_type: string; reason: string; status: string; opinion: string | null; decided_at: string | null;decided_by_username?:string|null; version_no: number }
+export interface Leave { created_at?:string; id: string; employee_id: string; employee_name?:string;employee_no?:string;department_id: string; start_date: string; end_date: string; leave_type: string; reason: string; status: string; opinion: string | null; decided_at: string | null;decided_by_username?:string|null; version_no: number }
+export interface LeaveSummary {month:string;submitted_this_month:number;pending:number;approved:number;rejected:number}
+export interface LeavePage extends Page<Leave> {summary?:LeaveSummary}
 export interface Salary { id: string; employee_id: string; employee_name?:string;employee_no?:string;month: string; amount: string; version_no: number }
 export interface User { id: string; username: string; employee_id: string | null; roles: string[]; department_ids: string[]; status: string; version_no: number }
 export interface ImportResult { valid: boolean; errors: {row: number; code: string; field?: string; message?: string}[]; imported: number; count?: number }

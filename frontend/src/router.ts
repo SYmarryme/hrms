@@ -14,7 +14,6 @@ import { defineComponent,h } from 'vue';
 import { canAccess } from './policy';
 import { workspace,resetWorkspace,verifySession,openTab } from './workspace';
 import {modalCount} from './modal';
-const EmployeeFiles=defineComponent({name:'EmployeeFiles',setup:()=>()=>h(Employees,{filesOnly:true})});
 const Approvals=defineComponent({name:'Approvals',setup:()=>()=>h(Leaves,{approvalMode:true})});
 
 export function makeRouter(history: RouterHistory = createWebHistory()) {
@@ -24,7 +23,7 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
     { path: '/departments', component: Departments, meta: { authenticated: true } },
     { path: '/positions', component: Positions, meta: { authenticated: true } },
     { path: '/employees', component: Employees, meta: { authenticated: true } },
-    { path: '/employee-files', component: EmployeeFiles, meta: { authenticated: true } },
+    { path: '/employee-files', redirect: '/employees' },
     { path: '/attendance', component: Attendance, meta: { authenticated: true } },
     { path: '/leaves', component: Leaves, meta: { authenticated: true } },
     { path: '/approvals', component: Approvals, meta: { authenticated: true } },

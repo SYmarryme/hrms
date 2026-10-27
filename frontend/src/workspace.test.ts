@@ -49,3 +49,9 @@ it('only clears the form that actually saved, keeping independent drafts dirty',
  workspace.profile=profile(['HR']);openTab('/attendance');markDirty('/attendance',true,'rule');markDirty('/attendance',false,'punch');
  expect(closeTab('/attendance',()=>false)).toBe(false);markDirty('/attendance',false,'rule');expect(closeTab('/attendance',()=>false)).toBe(true);
 });
+
+it('removes legacy employee-files entries and preserves one employee tab',async()=>{
+ workspace.profile=profile(['HR']);openTab('/employees');workspace.tabs.push({path:'/employee-files',label:'员工文件',dirty:false,dirtyScopes:[]});vi.mocked(me).mockResolvedValueOnce(profile(['HR']));await verifySession(false);
+ expect(workspace.tabs.some(t=>t.path==='/employee-files')).toBe(false);expect(visiblePages(profile(['HR'])).some(p=>p.path==='/employee-files')).toBe(false);
+ openTab('/employee-files');expect(workspace.tabs.filter(t=>t.path==='/employees')).toHaveLength(1);
+});

@@ -1,7 +1,7 @@
 import { ref,onActivated,onDeactivated,onScopeDispose } from 'vue';
 export function useScopedRefresh(refresh:()=>Promise<void>){
  const scopeLocked=ref(false),scopeFailure=ref('');let first=true,active=true,pending:Promise<void>|null=null;
- async function retryScope(){if(pending)return pending;scopeLocked.value=true;scopeFailure.value='';pending=(async()=>{try{await refresh();scopeLocked.value=false;}catch{scopeFailure.value='无法核验当前数据范围，内容暂不显示，请重试。';}finally{pending=null;}})();return pending;}
+ async function retryScope(){if(pending)return pending;scopeLocked.value=true;scopeFailure.value='';pending=(async()=>{try{await refresh();scopeLocked.value=false;}catch{scopeFailure.value='暂时无法加载此页面，请重试。';}finally{pending=null;}})();return pending;}
  function focus(){if(active&&!document.hidden)void retryScope();}
  window.addEventListener('focus',focus);
  document.addEventListener('visibilitychange',focus);

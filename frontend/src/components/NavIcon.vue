@@ -5,7 +5,6 @@ const shapes:Record<string,string[]>={
  '/departments':['M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6z','M12 8v4M6 16v-4h12v4'],
  '/positions':['M4 7h16v14H4z','M8 7V3h8v4M4 12h16M10 12v3h4v-3'],
  '/employees':['M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0','M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2'],
- '/employee-files':['M4 3h10l6 6v12H4z','M14 3v6h6M8 14h8M8 18h6'],
  '/attendance':['M5 5h14v16H5zM8 2v6M16 2v6M5 10h14','m9 15 2 2 4-4'],
  '/leaves':['M6 3h12v18H6zM9 7h6M9 11h6M9 15h3'],
  '/approvals':['M4 3h16v18H4z','m8 12 3 3 5-6'],
