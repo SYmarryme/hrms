@@ -12,7 +12,7 @@ async function login(page: Page, role: string) {
   await expect(page.getByRole('heading', { name:'系统主页' })).toBeVisible();
 }
 async function logout(page: Page) {
-  await navigate(page,'/');await page.getByRole('button', {name:'退出登录',exact:true}).click();
+  await navigate(page,'/');await expect(page.getByRole('heading',{name:'系统主页',exact:true})).toBeVisible();await page.getByRole('button',{name:'账号菜单',exact:true}).click();await page.getByRole('menuitem',{name:'退出登录',exact:true}).click();
   await expect(page.getByRole('heading', {name:'登录'})).toBeVisible();
 }
 async function navigate(page: Page, destination: string) {
@@ -75,7 +75,7 @@ test('real Edge course chain: ADMIN → HR organization/files → EMPLOYEE leave
   await navigate(page,'/departments');const departmentRow=page.getByRole('row').filter({has:page.getByRole('cell',{name:'E2E-DEPT',exact:true})});
   await departmentRow.getByRole('button',{name:'编辑',exact:true}).click();await page.getByLabel('部门状态',{exact:true}).selectOption('DISABLED');
   await page.getByRole('button',{name:'保存部门',exact:true}).click();await expect(departmentRow.getByRole('cell',{name:'停用',exact:true})).toBeVisible();
-  await navigate(page,'/salaries');await page.getByRole('button',{name:'录入薪资',exact:true}).click();await page.getByLabel('员工',{exact:true}).last().selectOption({label:'FIXTURE-EMPLOYEE · [虚构课程]employee'});
+  await navigate(page,'/salaries');await page.getByRole('button',{name:'录入薪资',exact:true}).click();await expect(page.getByRole('dialog',{name:'录入月薪',exact:true})).toBeVisible();await page.getByLabel('员工',{exact:true}).last().selectOption({label:'FIXTURE-EMPLOYEE · [虚构课程]employee'});
   await page.getByLabel('月份',{exact:true}).last().fill(new Date().toISOString().slice(0,7));await page.getByLabel('应发总额（元）',{exact:true}).fill('8800.50');
   await page.getByRole('button',{name:'保存薪资',exact:true}).click();await expect(page.locator('.feedback[role="status"]')).toContainText('保存');await logout(page);
 

@@ -25,37 +25,52 @@ def main():
     from backend.course_demo import create_demo, demo_path
     from backend.settings import Settings
     from scripts.local import PYTHON
+    web_port=int(os.environ.get('HRMS_E2E_FRONTEND_PORT','3000'))
+    api_port=int(os.environ.get('HRMS_E2E_BACKEND_PORT','8000'))
+    if not (1024<=web_port<=65535 and 1024<=api_port<=65535 and web_port!=api_port):raise ValueError('Use two distinct unprivileged local test ports')
+    origin=f'http://127.0.0.1:{web_port}'
     # Never accept a stale server's health response with a different fixture/password set.
-    for port in (3000,8000):
+    for port in (web_port,api_port):
         with socket.socket() as probe:
             if os.name=='nt':probe.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1)
             probe.bind(('127.0.0.1',port))
     name='e2e-'+uuid4().hex[:12]
     passwords={role:secrets.token_urlsafe(24) for role in ('admin','hr','manager','employee')}
-    create_demo(Settings(demo_path(name),'http://127.0.0.1:3000'),passwords)
+    create_demo(Settings(demo_path(name),origin),passwords)
     env=dict(os.environ)
     env.pop('HRMS_DATABASE_PATH',None);env.pop('HRMS_PUBLIC_ORIGIN',None)
     folder=ROOT/'var/mvp';folder.mkdir(parents=True,exist_ok=True)
     env.update(TEMP=str(folder),TMP=str(folder))
     flags={'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {}
-    stop_file=folder/(name+'.stop')
-    # Private completion file avoids Windows console/stdin ownership races.
-    with (folder/'e2e-server.log').open('w',encoding='utf-8') as log:
-        server=subprocess.Popen([str(PYTHON),'scripts/local.py','start','--name',name,'--stop-file',str(stop_file)],cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,**flags)
+    run=folder/name;run.mkdir(exist_ok=False)
+    # Only the disposable test server changes ports; the application config stays unchanged.
+    config=run/'vite.config.mjs'
+    base_config=(ROOT/'frontend/vite.config.mjs').as_uri()
+    config.write_text('import base from '+json.dumps(base_config)+';\nbase.server.port='+str(web_port)+';\nbase.server.proxy["/api/"].target='+json.dumps(f'http://127.0.0.1:{api_port}')+';\nexport default base;\n',encoding='utf-8')
+    env.update(HRMS_DATABASE_PATH=str(demo_path(name)),HRMS_PUBLIC_ORIGIN=origin,HRMS_LOCAL_ONLY='1')
+    for key in ('PYTHONPATH','PYTHONHOME','__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS'):env.pop(key,None)
+    processes=[]
+    with (run/'backend.log').open('w',encoding='utf-8') as backend_log,(run/'frontend.log').open('w',encoding='utf-8') as frontend_log:
         try:
+            processes.append(subprocess.Popen([str(PYTHON),'-m','uvicorn','backend.app:create_app','--factory','--host','127.0.0.1','--port',str(api_port),'--workers','1','--no-proxy-headers','--no-access-log'],cwd=ROOT,env=env,stdout=backend_log,stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,**flags))
+            processes.append(subprocess.Popen(['node',str(ROOT/'frontend/node_modules/vite/bin/vite.js'),'--config',str(config)],cwd=ROOT,env=env,stdout=frontend_log,stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,**flags))
             for _ in range(100):
-                if server.poll() is not None:raise RuntimeError('E2E server exited')
+                if any(p.poll() is not None for p in processes):raise RuntimeError('E2E server exited')
                 try:
-                    with urlopen('http://127.0.0.1:3000/api/v1/health',timeout=1) as response:
+                    with urlopen(origin+'/api/v1/health',timeout=1) as response:
                         if response.status==200:break
                 except OSError:time.sleep(.2)
             else:raise RuntimeError('E2E server not ready')
             result=subprocess.run(['node',str(ROOT/'frontend/node_modules/@playwright/test/cli.js'),'test','--config',str(ROOT/'frontend/playwright.config.ts'),*sys.argv[1:]],
-                cwd=ROOT/'frontend',env={**env,'HRMS_E2E_PASSWORDS':json.dumps(passwords)})
+                cwd=ROOT/'frontend',env={**env,'HRMS_E2E_BASE_URL':origin,'HRMS_E2E_PASSWORDS':json.dumps(passwords)})
             return result.returncode
         finally:
-            if server.poll() is None:
-                stop_file.touch();server.wait(timeout=20)
+            for process in processes:
+                if process.poll() is None:process.terminate()
+            for process in processes:
+                try:process.wait(timeout=10)
+                except subprocess.TimeoutExpired:process.kill();process.wait()
+
 
 
 if __name__=='__main__':sys.exit(main())

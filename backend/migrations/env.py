@@ -5,6 +5,7 @@ from backend.database import Database
 from backend.models import metadata
 from backend.settings import Settings
 from backend.migrations.schema_v1 import build_metadata
+from backend.migrations.course_schema import extend as extend_course
 
 settings = context.config.attributes.get('settings') or Settings.from_env()
 database = Database(settings.database_path)
@@ -14,9 +15,9 @@ with database.engine.connect() as connection:
         raise RuntimeError('Existing unversioned database; refusing to adopt or overwrite it')
     if 'alembic_version' in tables:
         versions = connection.exec_driver_sql('SELECT version_num FROM alembic_version').scalars().all()
-        if versions not in ([], ['identity_0001'], ['departments_0002'], ['course_0003']) or (not versions and len(tables) > 1):
+        if versions not in ([], ['identity_0001'], ['departments_0002'], ['course_0003'], ['password_0004']) or (not versions and len(tables) > 1):
             raise RuntimeError('Foreign or partial migration baseline; refusing to adopt it')
-        required = metadata if versions == ['course_0003'] else build_metadata()
+        required = metadata if versions == ['password_0004'] else extend_course(build_metadata()) if versions == ['course_0003'] else build_metadata()
         if versions and not set(required.tables).issubset(tables):
             raise RuntimeError('Versioned database is missing required tables; refusing to repair it implicitly')
     connection.rollback()

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator, SecretStr
+from pydantic_core import PydanticCustomError
 from sqlalchemy import select, insert, update, delete, func, or_, and_
 
 from backend.auth import AuthError, audit, utc, stamp
@@ -89,6 +90,13 @@ class RuleInput(Input):
     end_time: StrictStr
     grace_minutes: int = Field(ge=0, le=120, strict=True)
 
+    @field_validator('weekdays', mode='before')
+    @classmethod
+    def require_workday(cls, value):
+        if isinstance(value, list) and not value:
+            raise PydanticCustomError('attendance_workdays_required', '请至少选择一个工作日。')
+        return value
+
     @model_validator(mode='after')
     def valid(self):
         if len(set(self.weekdays)) != len(self.weekdays) or any(type(x) is not int or x not in range(5) for x in self.weekdays):
@@ -96,7 +104,7 @@ class RuleInput(Input):
         if not all(re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', value) for value in (self.start_time, self.end_time)):
             raise ValueError('Use HH:MM')
         if self.end_time <= self.start_time:
-            raise ValueError('Fixed daytime shift required')
+            raise PydanticCustomError('attendance_time_order', '下班时间必须晚于上班时间，请重新设置。')
         if (datetime.combine(date.min, time.fromisoformat(self.end_time)) - datetime.combine(date.min, time.fromisoformat(self.start_time))).total_seconds() <= self.grace_minutes * 60:
             raise ValueError('Grace must be shorter than shift')
         return self
@@ -206,9 +214,10 @@ class CourseService:
                         audit(session, now, action, 'SUCCESS', result.get('id', 'collection') if isinstance(result, dict) else 'collection',
                               request_id, principal['id'], resource_type='course')
         except AuthError as error:
-            if principal:
+            actor=principal['id'] if principal else error.actor_id
+            if actor:
                 with self.db.transaction(write=True) as session:
-                    audit(session, self.auth.now(), action, 'FAILURE', 'collection', request_id, principal['id'], error.code, resource_type='course')
+                    audit(session, self.auth.now(), action, 'FAILURE', 'collection', request_id, actor, error.code, resource_type='course')
             raise
         if denied:
             raise denied
@@ -594,7 +603,7 @@ class CourseService:
         if not current:
             if session.execute(select(users.c.id).where(users.c.username==data['username'])).first(): reject(message='账号已存在')
             item_id=str(uuid4()); session.execute(insert(users).values(id=item_id,username=data['username'],password_hash=self.auth.hash_password(data['password'].get_secret_value()),
-                employee_id=eid,status='ACTIVE',password_changed_at=now,created_at=now,updated_at=now,version_no=1))
+                employee_id=eid,status='ACTIVE',must_change_password=True,password_changed_at=now,created_at=now,updated_at=now,version_no=1))
         else:
             changed(session,users,current,{'employee_id':eid,'status':data['status']},now)
             session.execute(update(role_assignments).where(role_assignments.c.user_id==item_id,role_assignments.c.revoked_at.is_(None)).values(revoked_at=now,updated_at=now))
@@ -753,7 +762,7 @@ def make_router(bearer):
     def user_password(item_id:UUID,payload:PasswordInput,request:Request):
         def reset(s,p,n):
             row=row_by(s,users,str(item_id)); version(row,match(request))
-            result=changed(s,users,row,{'password_hash':service(request).auth.hash_password(payload.password.get_secret_value()),'password_changed_at':n},n)
+            result=changed(s,users,row,{'password_hash':service(request).auth.hash_password(payload.password.get_secret_value()),'password_changed_at':n,'must_change_password':True},n)
             s.execute(update(auth_sessions).where(auth_sessions.c.user_id==str(item_id),auth_sessions.c.revoked_at.is_(None)).values(revoked_at=n))
             return {'id':str(item_id),'version_no':result['version_no']}
         return reply(run(request,'identity.password.reset',reset,{'ADMIN'},True))

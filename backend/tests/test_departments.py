@@ -34,6 +34,13 @@ def hr(system):
     app.state.auth.provision_first_hr('initial-admin', admin_password, 'independent-hr', password, employee_id)
     reply = client.post('/api/v1/auth/login', json={'username': 'independent-hr', 'password': password})
     assert reply.status_code == 200
+    limited = {'Authorization': 'Bearer ' + reply.json()['data']['access_token']}
+    permanent = secrets.token_urlsafe(24)
+    status = client.post('/api/v1/auth/password', headers=limited, json={
+        'current_password': password, 'new_password': permanent, 'confirm_password': permanent}).status_code
+    assert status == 204
+    reply = client.post('/api/v1/auth/login', json={'username': 'independent-hr', 'password': permanent})
+    assert reply.status_code == 200
     return app, client, clock, {'Authorization': 'Bearer ' + reply.json()['data']['access_token']}, home_department
 
 

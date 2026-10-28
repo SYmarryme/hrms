@@ -1,0 +1,16 @@
+import {test,expect,type Page} from '@playwright/test';
+const credentials:Record<string,string>=JSON.parse(process.env.HRMS_E2E_PASSWORDS||'{}');
+async function login(page:Page,role='hr'){test.skip(!credentials[role],'Use isolated E2E runner');await page.goto('/login');await page.getByLabel('账号',{exact:true}).fill('fixture-'+role);await page.getByLabel('密码',{exact:true}).fill(credentials[role]);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page.getByRole('heading',{name:'系统主页',exact:true})).toBeVisible();}
+async function visit(page:Page,name:string){await page.getByRole('navigation',{name:'业务菜单'}).getByRole('link',{name,exact:true}).click();await expect(page.getByRole('heading',{name:name==='员工档案'?'员工管理':name,exact:true})).toBeVisible();}
+test('two new departments appear in a cached position page and its newly opened editor without re-login',async({page})=>{
+ await login(page);await visit(page,'职位管理');await expect(page.getByRole('cell',{name:'FIXTURE-STAFF · [虚构课程]职员'})).toBeVisible();await visit(page,'部门管理');
+ for(const [code,name] of [['SYNC-RD','同步测试研发部'],['SYNC-MARKET','同步测试市场部']]){await page.getByRole('button',{name:'新增部门',exact:true}).click();await page.getByLabel('部门编号',{exact:true}).fill(code);await page.getByLabel('部门名称',{exact:true}).fill(name);await page.getByRole('button',{name:'保存部门',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('cell',{name,exact:true})).toBeVisible();}
+ await visit(page,'职位管理');await page.getByRole('button',{name:'新增职位',exact:true}).click();const select=page.getByLabel('所属部门',{exact:true});await expect(select.getByRole('option',{name:'同步测试研发部',exact:true})).toHaveCount(1,{timeout:2000});await expect(select.getByRole('option',{name:'同步测试市场部',exact:true})).toHaveCount(1);await select.selectOption({label:'同步测试研发部'});
+});
+
+test('rapid cached navigation starts fresh dependencies without waiting for an older response',async({page,browser})=>{
+ await login(page);const actor=await browser.newPage();await login(actor);let release!:()=>void,started!:()=>void;const gate=new Promise<void>(resolve=>release=resolve),seen=new Promise<void>(resolve=>started=resolve);
+ await page.route('**/api/v1/departments?**',async route=>{const response=await route.fetch();started();await gate;await route.fulfill({response});},{times:1});
+ try{await page.getByRole('navigation',{name:'业务菜单'}).getByRole('link',{name:'职位管理',exact:true}).click();await seen;await visit(page,'员工档案');await actor.evaluate(async()=>{const api=await import('/src/api.ts');await api.createDepartment({code:'RACE-DEP',name:'竞态后新部门',parent_id:null,status:'ACTIVE'});});await page.getByRole('navigation',{name:'已打开的页面'}).getByRole('link',{name:'职位管理',exact:true}).click();await expect(page.getByRole('heading',{name:'职位管理',exact:true})).toBeVisible({timeout:2500});await page.getByRole('button',{name:'新增职位',exact:true}).click();await expect(page.getByLabel('所属部门',{exact:true}).getByRole('option',{name:'竞态后新部门',exact:true})).toHaveCount(1);release();await expect(page.getByLabel('所属部门',{exact:true}).getByRole('option',{name:'竞态后新部门',exact:true})).toHaveCount(1);
+ }finally{release();await actor.close();}
+});

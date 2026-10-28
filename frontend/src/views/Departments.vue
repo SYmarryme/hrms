@@ -5,27 +5,28 @@ import Modal from '../components/Modal.vue';
 import EmptyState from '../components/EmptyState.vue';
 import Pagination from '../components/Pagination.vue';
 
+import {useScopedRefresh} from '../scoped-refresh';
 import { useFeedback } from '../feedback';
 import { formatBeijing } from '../presentation';
-import { onMounted,toRef } from 'vue';
+import { toRef } from 'vue';
 import {confirmAction} from '../modal';
 import { useDepartmentPage } from '../department-page';
 
 const page = useDepartmentPage();
-const { state, canManage } = page;
+const { state, canManage,parentWarning,opener } = page;
 useFeedback(toRef(state,'notice'),toRef(state,'error'),'/departments');
 async function reloadDetail(){if(state.detail&&await confirmAction({title:'重新读取详情',message:'放弃当前输入并重新加载这条记录？'}))await page.open(state.detail.id,true);}
-onMounted(page.initialize);
+const {scopeLocked,scopeFailure,retryScope,scopeStyle}=useScopedRefresh(current=>page.initialize(true,current),['departments','employees']);
 </script>
 
 <template>
-  <div class="business-page">
-    <main>
+  <div :style="scopeStyle" class="business-page"><p v-if="scopeLocked" class="verification" role="status">{{scopeFailure||'加载中…'}}<button v-if="scopeFailure" @click="retryScope">重试</button></p>
+    <main v-show="!scopeLocked">
       <div class="section-heading"><div><p class="eyebrow">组织基础资料</p><h1>部门管理</h1><p class="muted">查询部门及层级；由授权 HR 维护基础信息和启停状态。</p></div>
         <button v-if="canManage" :disabled="state.busy" @click="page.beginCreate">新增部门</button></div>
       <p v-if="!canManage" class="muted">当前账号可查看部门，部门变更请联系人事管理员。</p>
       <p v-if="state.notice" class="success feedback" role="status">{{ state.notice }}</p>
-      <div v-if="state.error" class="error feedback" role="alert">{{ state.error }} <button class="secondary" :disabled="state.loading" @click="page.initialize">重新加载列表</button></div>
+      <div v-if="state.error" class="error feedback" role="alert">{{ state.error }} <button class="secondary" :disabled="state.loading" @click="retryScope">重新加载列表</button></div>
       <section class="card department-list" aria-label="部门列表">
         <form class="search-row" @submit.prevent="page.search">
           <div><label for="department-query">部门名称或编号</label><input id="department-query" v-model="state.q" maxlength="128" placeholder="输入名称或编号"></div>
@@ -45,7 +46,7 @@ onMounted(page.initialize);
         <Pagination :page="state.page" :page-size="state.pageSize" :total="state.total" :busy="state.loading" label="部门分页" @page="page.go" @size="state.pageSize=$event;page.search()"/>
       </section>
 
-      <Modal v-if="state.mode" :title="state.mode==='new'?'新增部门':state.mode==='edit'?'编辑部门':'部门详情'" :busy="state.busy" :error="state.error" :track-changes="state.mode!=='detail'" @close="page.close">
+      <Modal :return-focus="opener" v-if="state.mode" :title="state.mode==='new'?'新增部门':state.mode==='edit'?'编辑部门':'部门详情'" :busy="state.busy" :error="state.error" :track-changes="state.mode!=='detail'" :concealed="scopeLocked" @retry="retryScope" @close="page.close">
 
         <template v-if="state.mode === 'detail' && state.detail">
           <dl><dt>部门编号</dt><dd>{{ state.detail.code }}</dd><dt>名称</dt><dd>{{ state.detail.name }}</dd>
@@ -54,13 +55,13 @@ onMounted(page.initialize);
             <dt>更新时间</dt><dd>{{ formatBeijing(state.detail.updated_at) }}</dd></dl>
         </template>
         <form v-else @submit.prevent="page.save">
-          <fieldset :disabled="state.busy"><legend class="sr-only">部门基础信息</legend>
+          <fieldset :disabled="state.busy||state.parentLoading"><p v-if="parentWarning" class="error" role="alert">{{parentWarning}}</p><legend class="sr-only">部门基础信息</legend>
             <div class="form-columns"><div><label for="department-code">部门编号</label><input id="department-code" v-model="state.form.code" required maxlength="64"></div>
               <div><label for="department-name">部门名称</label><input id="department-name" v-model="state.form.name" required maxlength="128"></div></div>
             <label for="department-status">部门状态</label><select id="department-status" v-model="state.form.status"><option value="ACTIVE">启用</option><option value="DISABLED">停用</option></select>
             <p class="muted">停用前须处理仍启用的下级部门、在职归属和相关授权；系统不删除部门历史。</p>
             <div class="parent-picker"><label for="parent-query">查找上级部门</label><div class="search-row"><input id="parent-query" v-model="state.parentQ" maxlength="128" placeholder="上级名称或编号"><button type="button" class="secondary" :disabled="state.parentLoading" @click="page.parents(1)">查找</button></div>
-              <label for="department-parent">上级部门</label><select id="department-parent" v-model="state.form.parent_id">
+              <label for="department-parent">上级部门</label><select id="department-parent" v-model="state.form.parent_id" @change="page.parents(state.parentPage)">
                 <option :value="null">无上级（根部门）</option>
                 <option v-if="state.form.parent_id && !state.parentOptions.some(item => item.id === state.form.parent_id)" :value="state.form.parent_id">当前上级部门</option>
                 <option v-for="parent in state.parentOptions.filter(item => item.id !== state.detail?.id)" :key="parent.id" :value="parent.id">{{ parent.code }} · {{ parent.name }}{{ parent.status === 'DISABLED' ? '（停用）' : '' }}</option>

@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { visiblePages, canAccess } from './policy';
 import { formatBeijing, stateLabel } from './presentation';
-import { workspace, resetWorkspace, openTab, closeTab, markDirty } from './workspace';
+import { workspace, resetWorkspace, requirePasswordChange, openTab, closeTab, markDirty } from './workspace';
 import type { Profile } from './api';
 import { me,ApiError } from './api';
 import { verifySession } from './workspace';
@@ -54,4 +54,16 @@ it('removes legacy employee-files entries and preserves one employee tab',async(
  workspace.profile=profile(['HR']);openTab('/employees');workspace.tabs.push({path:'/employee-files',label:'员工文件',dirty:false,dirtyScopes:[]});vi.mocked(me).mockResolvedValueOnce(profile(['HR']));await verifySession(false);
  expect(workspace.tabs.some(t=>t.path==='/employee-files')).toBe(false);expect(visiblePages(profile(['HR'])).some(p=>p.path==='/employee-files')).toBe(false);
  openTab('/employee-files');expect(workspace.tabs.filter(t=>t.path==='/employees')).toHaveLength(1);
+});
+
+it('settings is a utility tab, never a home shortcut or business navigation item',()=>{
+ workspace.profile=profile(['ADMIN']);openTab('/');openTab('/settings');
+ expect(workspace.tabs.map(t=>t.path)).toEqual(['/','/settings']);
+ expect(visiblePages(workspace.profile).some(p=>p.path==='/settings')).toBe(false);
+ expect(canAccess('/settings',workspace.profile)).toBe(true);
+});
+it('password restriction destroys sensitive tab generations and suppresses every business menu',()=>{
+ workspace.profile=profile(['HR']);openTab('/salaries');const before=workspace.epoch;requirePasswordChange();
+ expect(workspace.tabs).toEqual([]);expect(workspace.epoch).toBeGreaterThan(before);
+ expect(visiblePages(workspace.profile)).toEqual([]);expect(canAccess('/salaries',workspace.profile)).toBe(false);
 });

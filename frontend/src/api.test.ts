@@ -52,3 +52,31 @@ describe('private memory session client', () => {
     }
   });
 });
+
+
+it('password success clears private session, failure retains it, and required state has its own signal', async () => {
+  vi.resetModules(); vi.stubGlobal('fetch', vi.fn());
+  const api=await import('./api'); const notice=await import('./password-notice');
+  vi.mocked(fetch).mockResolvedValueOnce(reply({access_token:generated(),token_type:'Bearer'}));
+  await api.login('synthetic-user',generated()); const required=vi.fn(); api.setPasswordRequiredHandler(required);
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({error:{code:'PASSWORD_CHANGE_REQUIRED'}}),{status:403}));
+  await expect(api.me()).rejects.toMatchObject({status:403,code:'PASSWORD_CHANGE_REQUIRED'});
+  expect(required).toHaveBeenCalledOnce(); expect(api.hasSession()).toBe(true);
+  vi.mocked(fetch).mockResolvedValueOnce(new Response('{}',{status:400}));
+  await expect(api.changeOwnPassword(generated(),generated(),generated())).rejects.toMatchObject({status:400});
+  expect(api.hasSession()).toBe(true); expect(notice.passwordNotice.value).toBe('');
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(null,{status:204}));
+  await api.changeOwnPassword(generated(),generated(),generated());
+  expect(vi.mocked(fetch).mock.calls.at(-1)?.[0]).toBe('/api/v1/auth/password');
+  expect(api.hasSession()).toBe(false); expect(notice.passwordNotice.value).toContain('重新登录');
+  vi.unstubAllGlobals();
+});
+
+it('failed writes never invalidate business data, while a confirmed successful write does',async()=>{
+ vi.resetModules();vi.stubGlobal('fetch',vi.fn());const api=await import('./api'),sync=await import('./data-sync');const listener=vi.fn(),stop=sync.onDataInvalidated(listener);
+ try{vi.mocked(fetch).mockResolvedValueOnce(reply({access_token:generated(),token_type:'Bearer'}));await api.login('synthetic-user',generated());const input={code:'SYNTHETIC',name:'测试',parent_id:null,status:'ACTIVE' as const};
+ for(const status of [400,403,409,422,500]){vi.mocked(fetch).mockResolvedValueOnce(new Response('{}',{status}));await expect(api.createDepartment(input)).rejects.toMatchObject({status});}expect(listener).not.toHaveBeenCalled();
+ vi.mocked(fetch).mockResolvedValueOnce(new Response('<html>invalid</html>',{status:200}));await expect(api.createDepartment(input)).rejects.toMatchObject({code:'INVALID_RESPONSE'});expect(listener).not.toHaveBeenCalled();
+ vi.mocked(fetch).mockResolvedValueOnce(reply({id:'synthetic',...input}));await api.createDepartment(input);expect(listener).toHaveBeenCalledOnce();expect([...listener.mock.calls[0][0]]).toContain('positions');
+ }finally{stop();vi.unstubAllGlobals();}
+});

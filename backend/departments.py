@@ -78,9 +78,10 @@ class DepartmentService:
                         raise AuthError(403, 'AUTHORIZATION_DENIED', 'HR员工当前任职事实或部门岗位已失效')
                     result = operation(session, principal, now)
         except AuthError as error:
-            if principal is not None:
+            actor=principal['id'] if principal else error.actor_id
+            if actor:
                 with self.database.transaction(write=True) as session:
-                    audit(session, self.auth.now(), action, 'FAILURE', resource_id, request_id, principal['id'], error.code, resource_type='department')
+                    audit(session, self.auth.now(), action, 'FAILURE', resource_id, request_id, actor, error.code, resource_type='department')
             raise
         # Commit expiration/revocation before returning a 401, rather than rolling it back.
         if denied is not None:

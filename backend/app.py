@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from backend.auth import AuthError, AuthService
+from backend.models import CURRENT_REVISION
 from backend.database import Database
 from backend.departments import DepartmentService, make_router
 from backend.settings import Settings
@@ -22,6 +23,13 @@ class LoginInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     username: str = Field(min_length=1, max_length=64)
     password: SecretStr = Field(min_length=1, max_length=128)
+
+
+class PasswordChangeInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    current_password:SecretStr
+    new_password:SecretStr
+    confirm_password:SecretStr
 
 
 class LoginBodyLimit:
@@ -125,6 +133,18 @@ def create_app(settings=None, clock=None):
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request, _error):
+        if request.url.path=='/api/v1/auth/password':
+            try:auth.password_change_failure(bearer(request),request.state.request_id)
+            except AuthError:pass
+        if request.method == 'POST' and request.url.path == '/api/v1/attendance/rules':
+            # Map only our rule validators; never reflect Pydantic input/context.
+            types = {error['type'] for error in _error.errors()}
+            for kind, code, message in (
+                ('attendance_workdays_required', 'ATTENDANCE_WORKDAYS_REQUIRED', '请至少选择一个工作日。'),
+                ('attendance_time_order', 'ATTENDANCE_TIME_ORDER', '下班时间必须晚于上班时间，请重新设置。'),
+            ):
+                if kind in types:
+                    return failure(request, 422, code, message)
         return failure(request, 422, 'VALIDATION_ERROR', '请求字段或格式不正确')
 
     @app.exception_handler(SQLAlchemyError)
@@ -138,7 +158,7 @@ def create_app(settings=None, clock=None):
     @app.get('/api/v1/health')
     def health():
         database.check_revision()
-        return {'status': 'ok', 'application': 'hrms', 'schema': 'course_0003'}
+        return {'status': 'ok', 'application': 'hrms', 'schema': CURRENT_REVISION}
 
     @app.post('/api/v1/auth/login')
     def login(payload: LoginInput, request: Request):
@@ -150,6 +170,12 @@ def create_app(settings=None, clock=None):
     def me(request: Request):
         # Identity is always selected from the server session, never a client employee/user ID.
         return {'data': auth.me(bearer(request),touch=request.headers.get('X-HRMS-Session-Probe')!='1')}
+
+    @app.post('/api/v1/auth/password', status_code=204)
+    def change_password(payload:PasswordChangeInput,request:Request):
+        auth.change_password(bearer(request),payload.current_password.get_secret_value(),payload.new_password.get_secret_value(),
+                             payload.confirm_password.get_secret_value(),request.client.host if request.client else 'unknown',request.state.request_id)
+        return Response(status_code=204)
 
     @app.post('/api/v1/auth/logout', status_code=204)
     def logout(request: Request):

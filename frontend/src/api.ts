@@ -1,10 +1,14 @@
+import {invalidateBusiness} from './data-sync';
+import {passwordNotice} from './password-notice';
 // Module-private memory only. Never export a token getter or persist this state.
 let token: string | null = null;
 let onExpired: () => void = () => {};
+let onPasswordRequired:()=>void=()=>{};
 
 export interface Profile {
   id: string; username: string; status: string; employee_id: string | null; roles: string[];
   session: { id: string; created_at: string; expires_at: string };
+  must_change_password?:boolean;
   employee_name?: string | null; employee_no?: string | null; employment_valid?: boolean;
 }
 export interface DepartmentRecord {
@@ -24,10 +28,11 @@ export class ApiError extends Error {
 }
 export const hasSession = () => token !== null;
 export function setExpiredHandler(handler: () => void) { onExpired = handler; }
+export function setPasswordRequiredHandler(handler:()=>void){onPasswordRequired=handler;}
 export function discardSession(){ token=null;onExpired(); }
 
 export type CoursePath = `/positions${string}` | `/employees${string}` | `/attendance${string}` | `/leaves${string}` | `/salaries${string}` | `/dashboard${string}` | `/users${string}`;
-type ApiPath = '/auth/login' | '/auth/me' | '/auth/logout' | `/departments${string}` | CoursePath;
+type ApiPath = '/auth/login' | '/auth/me' | '/auth/logout' | '/auth/password' | `/departments${string}` | CoursePath;
 async function request(path: ApiPath, init: RequestInit = {}, etag?: string, binary = false, probe = false) {
   const attached = path === '/auth/login' ? null : token;
   const headers: Record<string, string> = { Accept: 'application/json' };
@@ -43,7 +48,7 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string, bin
     throw new ApiError(0, 'NETWORK_ERROR', '服务暂不可用，请检查连接后重试');
   }
   if(attached && token!==attached)throw new ApiError(401,'AUTHENTICATION_REQUIRED','会话已变化，请重新登录');
-  if (response.status === 204) return { data: undefined, etag: null };
+  if (response.status === 204) {invalidateBusiness(path,init.method||'GET');return { data: undefined, etag: null };}
   if (!response.ok) {
     if (response.status === 401 && attached && token === attached) { token = null; onExpired(); }
     // Only known constant user messages; never include response bodies/requests in errors.
@@ -51,12 +56,15 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string, bin
       response.status === 429 ? '尝试过于频繁，请稍后重试' : response.status === 412 ? '记录已被其他操作修改，请重新读取详情后编辑' :
       response.status === 428 ? '请先重新打开详情，再进行修改' : response.status === 409 ? '编号重复或存在层级、在职归属等业务冲突，请核对后重试' :
       response.status === 422 ? '输入或查询参数不正确，请核对字段与长度' : response.status === 404 ? '记录不存在，请刷新列表' : '操作未完成，请稍后重试';
+    let passwordRequired=false;
     // Only explicitly approved messages; arbitrary gateway/server text is never reflected.
     try{const payload:unknown=await response.json();if(payload&&typeof payload==='object'&&'error' in payload){const error=payload.error;
+      if(error&&typeof error==='object'&&'code' in error&&error.code==='PASSWORD_CHANGE_REQUIRED'&&response.status===403)passwordRequired=true;
       if(error&&typeof error==='object'&&'message' in error&&typeof error.message==='string'){
         const { businessError }=await import('./error-messages');message=businessError(error.message)||message;
       }}}catch{/* Keep the safe status fallback for non-JSON gateways. */}
-    const code = response.status === 401 ? 'AUTHENTICATION_REQUIRED' : response.status === 403 ? 'AUTHORIZATION_DENIED' :
+    if(passwordRequired&&attached&&token===attached){message='请先修改临时密码';onPasswordRequired();}
+    const code = passwordRequired?'PASSWORD_CHANGE_REQUIRED':response.status === 401 ? 'AUTHENTICATION_REQUIRED' : response.status === 403 ? 'AUTHORIZATION_DENIED' :
       response.status === 429 ? 'RATE_LIMITED' : response.status === 412 ? 'VERSION_MISMATCH' : 'REQUEST_FAILED';
     throw new ApiError(response.status, code, message);
   }
@@ -64,6 +72,7 @@ async function request(path: ApiPath, init: RequestInit = {}, etag?: string, bin
   let payload: any;
   try { payload = await response.json(); }
   catch { throw new ApiError(response.status, 'INVALID_RESPONSE', '服务响应格式不正确'); }
+  invalidateBusiness(path,init.method||'GET');
   return { data: payload.data, etag: response.headers.get('ETag') };
 }
 
@@ -102,4 +111,10 @@ export async function createDepartment(input: DepartmentInput): Promise<Departme
 }
 export async function updateDepartment(id: string, input: DepartmentInput, etag: string): Promise<DepartmentRecord> {
   return (await request(`/departments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) }, etag)).data;
+}
+
+export async function changeOwnPassword(current_password:string,new_password:string,confirm_password:string):Promise<void>{
+  await request('/auth/password',{method:'POST',body:JSON.stringify({current_password,new_password,confirm_password})});
+  passwordNotice.value='密码已修改，请使用新密码重新登录。';
+  discardSession();
 }

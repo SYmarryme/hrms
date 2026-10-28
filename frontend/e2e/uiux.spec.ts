@@ -1,11 +1,20 @@
 import { test,expect,type Page } from '@playwright/test';
 import path from 'node:path';
 const credentials:Record<string,string>=JSON.parse(process.env.HRMS_E2E_PASSWORDS||'{}');
+const activated:Record<string,string>={};
 const menu=(page:Page)=>page.getByRole('navigation',{name:'业务菜单'});
 async function login(page:Page,role:string,username='fixture-'+role){
  test.skip(!credentials[role],'Use the isolated local E2E runner');await page.goto('/login');
- await page.getByLabel('账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(credentials[role]);
- await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page.getByRole('heading',{name:'系统主页'})).toBeVisible();
+ await page.getByLabel('账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(activated[username]||credentials[role]);
+ await page.getByRole('button',{name:'登录',exact:true}).click();
+ if(username!=='fixture-'+role&&!activated[username]){
+  const dialog=page.getByRole('dialog',{name:'首次登录 · 请修改密码',exact:true});await expect(dialog).toBeVisible();
+  await dialog.getByLabel('当前密码：',{exact:true}).fill(credentials[role]);await dialog.getByLabel('新密码：',{exact:true}).fill(credentials[role]+'Activated');await dialog.getByLabel('确认新密码：',{exact:true}).fill(credentials[role]+'Activated');
+  await dialog.getByRole('button',{name:'保存新密码',exact:true}).click();await expect(page.getByRole('heading',{name:'登录账号'})).toBeVisible();
+  await page.getByLabel('账号',{exact:true}).fill(username);await page.getByLabel('密码',{exact:true}).fill(credentials[role]+'Activated');await page.getByRole('button',{name:'登录',exact:true}).click();
+ }
+ if(username!=='fixture-'+role)activated[username]=credentials[role]+'Activated';
+ await expect(page.getByRole('heading',{name:'系统主页'})).toBeVisible();
 }
 async function visit(page:Page,label:string){await menu(page).getByRole('link',{name:label,exact:true}).click();}
 async function apiStatus(page:Page,url:string,method='GET',body?:unknown){
@@ -76,7 +85,7 @@ test('UIUX attendance persistent status and specific duplicate feedback',async({
  const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/attendance/clock-in',{timeout:10000});
  await page.getByRole('button',{name:'上班打卡',exact:true}).click();const code=(await response).status();expect([200,409]).toContain(code);
  if(code===409)await page.getByRole('button',{name:'关闭反馈，查看今日状态'}).click();
- else await expect(page.getByRole('status').filter({hasText:'上班打卡成功'})).toBeHidden({timeout:7000});
+ else {const message=page.getByRole('status').filter({hasText:'上班打卡成功'});await expect(message).toBeVisible();await expect(message).toBeHidden({timeout:7000});}
  await expect(page.locator('.persistent-punch')).toContainText('今日已完成');
  await page.getByRole('button',{name:'上班打卡',exact:true}).click();await expect(page.getByRole('alert')).toContainText('今日已完成上班打卡');
  await expect(page.locator('.persistent-punch')).toHaveCount(0);await page.getByRole('button',{name:'关闭反馈，查看今日状态'}).click();await expect(page.locator('.persistent-punch')).toBeVisible();
@@ -109,7 +118,7 @@ test('UIUX multi-role union and revocation clear cached sensitive tabs',async({p
  const eid=await page.evaluate(async()=>{const {courseApi}=await import('/src/course-api.ts');const {items}=await courseApi('/employees?q=FIXTURE-HR');const original=items[0];return (await courseApi('/employees','POST',{employee_no:'UIUX-MULTI',full_name:'[虚构]多角色测试',current_department_id:original.current_department_id,current_position_id:original.current_position_id,hire_date:original.hire_date,employment_status:'ACTIVE'})).id;});
  const admin=await browser.newPage();await login(admin,'admin');
  await admin.evaluate(async({eid,password})=>{const {courseApi}=await import('/src/course-api.ts');await courseApi('/users','POST',{username:'fixture-uiux-multi',password,employee_id:eid,roles:['HR'],department_ids:[]});},{eid,password:credentials.hr});
- await page.getByRole('button',{name:'退出登录',exact:true}).click();await login(page,'hr','fixture-uiux-multi');await visit(page,'薪资管理');await visit(page,'员工档案');
+ await page.getByRole('button',{name:'账号菜单',exact:true}).click();await page.getByRole('menuitem',{name:'退出登录',exact:true}).click();await login(page,'hr','fixture-uiux-multi');await visit(page,'薪资管理');await visit(page,'员工档案');
  await visit(admin,'用户管理与审计');
  const row=admin.getByRole('row').filter({has:admin.getByRole('cell',{name:'fixture-uiux-multi',exact:true})});
  await row.getByRole('button',{name:'编辑 / 角色 / 停用',exact:true}).click();await admin.getByLabel('系统管理员',{exact:true}).check();await admin.getByRole('button',{name:'保存账号',exact:true}).click();

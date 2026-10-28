@@ -20,8 +20,9 @@ MAX_SESSIONS = 5
 
 
 class AuthError(Exception):
-    def __init__(self, status=401, code='AUTHENTICATION_REQUIRED', message='身份认证失败或会话已失效'):
+    def __init__(self, status=401, code='AUTHENTICATION_REQUIRED', message='身份认证失败或会话已失效', actor_id=None):
         self.status, self.code, self.message = status, code, message
+        self.actor_id=actor_id
 
 
 def utc(value):
@@ -70,6 +71,7 @@ class AuthService:
         self.password_slots = BoundedSemaphore(2)
         self.dummy_hash = self.hasher.hash(secrets.token_urlsafe(32))
         self.limiter = LoginLimiter()
+        self.password_change_limiter = LoginLimiter()
 
     def now(self):
         return utc(self.clock())
@@ -128,7 +130,7 @@ class AuthService:
                 audit(session, now, 'auth.login', 'SUCCESS', session_id, request_id, row['id'])
         if denied:
             raise AuthError()
-        return {'access_token': raw, 'token_type': 'Bearer', 'expires_at': stamp(expires)}
+        return {'access_token': raw, 'token_type': 'Bearer', 'expires_at': stamp(expires),'must_change_password':bool(current['must_change_password'])}
 
     @staticmethod
     def employee_terminated(session, employee_id):
@@ -159,7 +161,7 @@ class AuthService:
         return bool(position and len(current) == 1 and current[0]['department_id'] == employee['current_department_id']
                     and current[0]['position_id'] == employee['current_position_id'])
 
-    def resolve(self, session, raw, now, touch=True):
+    def resolve(self, session, raw, now, touch=True, allow_password_change=False):
         row = session.execute(select(auth_sessions).where(
             auth_sessions.c.token_hash == hashlib.sha256(raw.encode()).hexdigest())).mappings().first()
         if not row or row['revoked_at'] is not None:
@@ -174,6 +176,8 @@ class AuthService:
             session.execute(update(auth_sessions).where(auth_sessions.c.user_id == user['id'], auth_sessions.c.revoked_at.is_(None))
                             .values(revoked_at=now))
             return None
+        if user['must_change_password'] and not allow_password_change:
+            raise AuthError(403,'PASSWORD_CHANGE_REQUIRED','请先修改临时密码',actor_id=user['id'])
         if touch and now - last >= TOUCH_INTERVAL:
             session.execute(update(auth_sessions).where(auth_sessions.c.id == row['id']).values(last_seen_at=now))
         current_roles = session.execute(select(roles.c.code).join(role_assignments, role_assignments.c.role_id == roles.c.id)
@@ -183,12 +187,13 @@ class AuthService:
             .order_by(roles.c.code)).scalars().all()
         return {'id': user['id'], 'username': user['username'], 'status': user['status'],
                 'employee_id': user['employee_id'], 'roles': sorted(set(current_roles)),
+                'must_change_password':bool(user['must_change_password']),
                 'session': {'id': row['id'], 'created_at': stamp(row['created_at']), 'expires_at': stamp(row['expires_at'])}}
 
     def me(self, raw, touch=True):
         with self.database.transaction(write=True) as session:
             now = self.now()
-            principal = self.resolve(session, raw, now, touch=touch)
+            principal = self.resolve(session, raw, now, touch=touch,allow_password_change=True)
             if principal:
                 employee = session.execute(select(metadata.tables['employees']).where(
                     metadata.tables['employees'].c.id == principal['employee_id'])).mappings().first()
@@ -202,7 +207,7 @@ class AuthService:
     def logout(self, raw, request_id):
         with self.database.transaction(write=True) as session:
             now = self.now()
-            principal = self.resolve(session, raw, now, touch=False)
+            principal = self.resolve(session, raw, now, touch=False,allow_password_change=True)
             if principal is not None:
                 session.execute(update(auth_sessions).where(auth_sessions.c.id == principal['session']['id']).values(revoked_at=now))
                 audit(session, now, 'auth.logout', 'SUCCESS', principal['session']['id'], request_id, principal['id'])
@@ -228,6 +233,41 @@ class AuthService:
             audit(session, now, 'system.bootstrap.complete', 'SUCCESS', user_id, str(uuid4()), user_id)
         return user_id
 
+    def password_change_failure(self, raw, request_id, reason='INVALID_REQUEST'):
+        with self.database.transaction(write=True) as session:
+            now=self.now();principal=self.resolve(session,raw,now,touch=False,allow_password_change=True)
+            audit(session,now,'auth.password.change','FAILURE',principal['id'] if principal else request_id,request_id,
+                  principal['id'] if principal else None,reason)
+
+    def change_password(self, raw, current_password, new_password, confirm_password, peer, request_id):
+        principal=None
+        try:
+            with self.database.transaction(write=True) as session:
+                now=self.now();principal=self.resolve(session,raw,now,allow_password_change=True)
+                if principal is None:raise AuthError()
+                if not self.password_change_limiter.admit(principal['id'],peer,now):
+                    raise AuthError(429,'RATE_LIMITED','尝试过于频繁，请稍后重试')
+                row=session.execute(select(users).where(users.c.id==principal['id'])).mappings().one()
+                with self.password_slots:
+                    try:valid=1<=len(current_password)<=128 and self.hasher.verify(row['password_hash'],current_password)
+                    except (VerificationError,InvalidHashError):valid=False
+                if not valid:raise AuthError(400,'CURRENT_PASSWORD_INVALID','当前密码不正确，请重新输入')
+                if not 12<=len(new_password)<=128:raise AuthError(422,'PASSWORD_POLICY','新密码长度必须为12到128个字符')
+                if new_password!=confirm_password:raise AuthError(422,'PASSWORD_CONFIRMATION_MISMATCH','两次输入的新密码不一致')
+                if new_password==current_password:raise AuthError(422,'PASSWORD_REUSED','新密码不能与当前密码相同')
+                digest=self.hash_password(new_password)
+                result=session.execute(update(users).where(users.c.id==row['id'],users.c.version_no==row['version_no'])
+                    .values(password_hash=digest,password_changed_at=now,must_change_password=False,
+                            version_no=row['version_no']+1,updated_at=now))
+                if result.rowcount!=1:raise AuthError(409,'ACCOUNT_CHANGED','账号已变化，请重新登录后再修改')
+                session.execute(update(auth_sessions).where(auth_sessions.c.user_id==row['id'],auth_sessions.c.revoked_at.is_(None)).values(revoked_at=now))
+                audit(session,now,'auth.password.change','SUCCESS',row['id'],request_id,row['id'])
+        except AuthError as error:
+            with self.database.transaction(write=True) as session:
+                audit(session,self.now(),'auth.password.change','FAILURE',principal['id'] if principal else request_id,
+                      request_id,principal['id'] if principal else None,error.code)
+            raise
+
     def reset_password(self, username, password):
         digest = self.hash_password(password)
         with self.database.transaction(write=True) as session:
@@ -236,7 +276,7 @@ class AuthService:
             if user is None:
                 raise AuthError(404, 'NOT_FOUND', '账号不存在')
             session.execute(update(users).where(users.c.id == user['id']).values(password_hash=digest,
-                password_changed_at=now, version_no=users.c.version_no + 1, updated_at=now))
+                password_changed_at=now, must_change_password=True, version_no=users.c.version_no + 1, updated_at=now))
             session.execute(update(auth_sessions).where(auth_sessions.c.user_id == user['id'], auth_sessions.c.revoked_at.is_(None))
                             .values(revoked_at=now))
             audit(session, now, 'auth.password.reset', 'SUCCESS', user['id'], str(uuid4()), reason='CONTROLLED_LOCAL_CLI')
@@ -293,7 +333,7 @@ class AuthService:
             if session.execute(select(users.c.id).where(users.c.employee_id == employee_id)).first():
                 raise AuthError(409, 'STATE_CONFLICT', '该员工已有账号，首次CLI不改写已有身份')
             session.execute(insert(users).values(id=user_id, username=username, password_hash=digest, employee_id=employee_id,
-                status='ACTIVE', password_changed_at=now, version_no=1, created_at=now, updated_at=now))
+                must_change_password=True,status='ACTIVE', password_changed_at=now, version_no=1, created_at=now, updated_at=now))
             grant_id = str(uuid4())
             session.execute(insert(role_assignments).values(id=grant_id, user_id=user_id, role_id=hr_role, valid_from_at=now,
                 valid_to_at=None, assigned_by=current['id'], revoked_at=None, reason='Controlled first HR assignment by authenticated ADMIN',

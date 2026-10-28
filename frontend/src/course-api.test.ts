@@ -49,3 +49,14 @@ it('does not reflect unknown server messages or internal codes to users',async()
  vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({error:{code:'PRIVATE_DEBUG',message:'POSITION_DEPARTMENT_MISMATCH'}}),{status:409}));
  await expect(courseApi('/positions','POST',{})).rejects.toMatchObject({message:'编号重复或存在层级、在职归属等业务冲突，请核对后重试'});
 });
+
+it('explains each attendance validation failure without replacing unrelated 422 errors',async()=>{
+ for(const [message,expected] of [
+  ['下班时间必须晚于上班时间，请重新设置。','下班时间必须晚于上班时间，请重新设置。'],
+  ['请至少选择一个工作日。','请至少选择一个工作日。'],
+  ['请求字段或格式不正确','输入或查询参数不正确，请核对字段与长度'],
+ ]){
+  vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response(JSON.stringify({error:{code:'VALIDATION_ERROR',message}}),{status:422}));
+  await expect(courseApi('/attendance/rules','POST',{})).rejects.toMatchObject({status:422,message:expected});
+ }
+});

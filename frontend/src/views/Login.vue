@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ApiError, login, me, logout } from '../api';
+import {passwordNotice} from '../password-notice';
 
 const router = useRouter();
 const username = ref('');
@@ -11,7 +12,7 @@ const error = ref('');
 const busy = ref(false);
 async function submit() {
   if (busy.value) return;
-  busy.value = true; error.value = '';
+  busy.value = true; error.value = '';passwordNotice.value='';
   try {
     await login(username.value.trim(), password.value);
     await me(); // The server, not the route guard, decides whether this session is valid.
@@ -32,6 +33,7 @@ async function submit() {
       <h2>登录账号</h2><p class="muted">刷新页面或打开新标签页后需要重新登录。</p>
       <label for="username">账号</label><input id="username" v-model="username" required maxlength="64" autocomplete="username" :disabled="busy">
       <label for="password">密码</label><div class="password-control"><input id="password" v-model="password" :type="passwordVisible?'text':'password'" required maxlength="128" autocomplete="current-password" :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-pressed="passwordVisible" :aria-label="passwordVisible?'隐藏密码':'显示密码'" @click="passwordVisible=!passwordVisible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path v-if="!passwordVisible" d="m3 3 18 18"/></svg></button></div>
+      <p v-if="passwordNotice" class="success" role="status">{{passwordNotice}}</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <button type="submit" :disabled="busy">{{ busy ? '正在登录…' : '登录' }}</button>
     </form>

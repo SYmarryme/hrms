@@ -25,3 +25,10 @@ describe('protected route navigation', () => {
     const router=makeRouter(createMemoryHistory());await router.push('/employee-files');expect(router.currentRoute.value.path).toBe('/employees');
   });
 });
+
+it('opens personal settings as a utility tab for an unbound admin',async()=>{
+ resetWorkspace();vi.mocked(hasSession).mockReturnValue(true);vi.mocked(me).mockResolvedValue({id:'admin',username:'admin',employee_id:null,status:'ACTIVE',roles:['ADMIN'],must_change_password:false,session:{id:'s',created_at:'',expires_at:''}});const router=makeRouter(createMemoryHistory());await router.push('/settings');expect(router.currentRoute.value.path).toBe('/settings');
+});
+it('forces temporary sessions away from every business URL and settings',async()=>{
+ resetWorkspace();vi.mocked(hasSession).mockReturnValue(true);vi.mocked(me).mockResolvedValue({id:'admin',username:'admin',employee_id:null,status:'ACTIVE',roles:['ADMIN'],must_change_password:true,session:{id:'s',created_at:'',expires_at:''}});const router=makeRouter(createMemoryHistory());await router.push('/departments');expect(router.currentRoute.value.path).toBe('/password-required');await router.push('/settings');expect(router.currentRoute.value.path).toBe('/password-required');
+});
